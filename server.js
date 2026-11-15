@@ -1179,6 +1179,10 @@ async function nativeChat(res, body, headers, nativeBase, spec) {
   } catch (e) {
     return res.status(502).json({ error: 'APIに接続できません: ' + e.message });
   }
+  // 上流プロキシ（Cloudflare）のタイムアウト等を分かりやすいエラーに変換
+  if (upstream.status === 524 || upstream.status === 504 || upstream.status === 522 || upstream.status === 520) {
+    return res.status(504).json({ error: '上流APIがタイムアウトしました（生成に時間がかかりすぎた可能性があります）。出力を短くするか、もう一度お試しください。' });
+  }
   const text = await upstream.text();
   let j = null;
   try { j = JSON.parse(text); } catch {}
@@ -1235,6 +1239,11 @@ app.post('/api/chat', async (req, res) => {
     });
   } catch (e) {
     return res.status(502).json({ error: 'APIに接続できません: ' + e.message });
+  }
+
+  // 上流プロキシ（Cloudflare）のタイムアウト等を分かりやすいエラーに変換
+  if (upstream.status === 524 || upstream.status === 504 || upstream.status === 522 || upstream.status === 520) {
+    return res.status(504).json({ error: '上流APIがタイムアウトしました（生成に時間がかかりすぎた可能性があります）。出力を短くするか、もう一度お試しください。' });
   }
 
   res.status(upstream.status);
