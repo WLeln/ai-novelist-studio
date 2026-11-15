@@ -10,15 +10,17 @@ export function icon(name) {
 }
 
 // ---------- カスタムダイアログ（Electronは prompt/confirm/alert 非対応） ----------
-export function appDialog(message, { input = false, defValue = '', okText = 'OK' } = {}) {
+export function appDialog(message, { input = false, defValue = '', okText = 'OK', multiline = false, width = 'min(400px,90vw)' } = {}) {
   return new Promise(resolve => {
     const overlay = document.createElement('div');
     overlay.className = 'modal';
     overlay.innerHTML = `
-      <div class="modal-content" style="width:min(400px,90vw)">
+      <div class="modal-content" style="width:${width}">
         <div class="modal-body" style="padding:20px 24px">
           <p style="white-space:pre-wrap;font-size:13px;line-height:1.7;margin:0 0 12px">${esc(String(message))}</p>
-          ${input ? `<input type="text" class="dlg-input" value="${esc(defValue)}" style="width:100%">` : ''}
+          ${input ? (multiline
+            ? `<textarea class="dlg-input" rows="4" style="width:100%;resize:vertical;min-height:70px">${esc(defValue)}</textarea>`
+            : `<input type="text" class="dlg-input" value="${esc(defValue)}" style="width:100%">`) : ''}
         </div>
         <div class="modal-footer" style="justify-content:flex-end;gap:8px">
           ${input ? '<button class="btn-ghost dlg-cancel">キャンセル</button>' : ''}
@@ -33,10 +35,15 @@ export function appDialog(message, { input = false, defValue = '', okText = 'OK'
     if (cancelBtn) cancelBtn.onclick = () => done(input ? null : false);
     overlay.addEventListener('click', (e) => { if (e.target === overlay) done(input ? null : false); });
     if (inp) inp.onkeydown = (e) => {
-      if (e.key === 'Enter' && !e.isComposing) done(inp.value);
-      if (e.key === 'Escape') done(null);
+      if (multiline) {
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !e.isComposing) { e.preventDefault(); done(inp.value); }
+        if (e.key === 'Escape') done(null);
+      } else {
+        if (e.key === 'Enter' && !e.isComposing) done(inp.value);
+        if (e.key === 'Escape') done(null);
+      }
     };
-    setTimeout(() => { if (inp) { inp.focus(); inp.select(); } else overlay.querySelector('.dlg-ok').focus(); }, 50);
+    setTimeout(() => { if (inp) { inp.focus(); if (!multiline) inp.select(); } else overlay.querySelector('.dlg-ok').focus(); }, 50);
   });
 }
 export const appAlert = (m) => appDialog(m, { okText: 'OK' }).then(() => {});

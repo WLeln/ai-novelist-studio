@@ -1,6 +1,6 @@
 // ---------- Documents（リッチテキストエディタのドキュメント） ----------
 import { $, convTitleEl } from './dom.js';
-import { api, esc, appAlert, appConfirm, appPrompt, fmtDate, downloadFile, icon, showResultModal } from './util.js';
+import { api, esc, appAlert, appConfirm, appPrompt, appDialog, fmtDate, downloadFile, icon, showResultModal } from './util.js';
 import { allDocs, setAllDocs, allCards, styleSampleBlock, overusedWordBlock } from './state.js';
 import { activateTab, registerTabOpener, renderTabs, projectNamesAll, showDocView, closeTab, queueDraftSave, activeTabType } from './conversations.js';
 import { callApiOnce } from './context.js';
@@ -297,7 +297,7 @@ async function aiContinueDoc() {
   if (!currentDoc || !editor) return;
   const text = editor.getText().trim();
   if (text.length < 30) { appAlert('先に本文を30字以上入力してください'); return; }
-  const instr = await appPrompt('AIへの指示（任意・空欄なら自然な続き）', '');
+  const instr = await appDialog('AIへの指示（任意・空欄なら自然な続き。Ctrl+Enterで確定）', { input: true, multiline: true, width: 'min(560px,92vw)' });
   if (instr === null) return;
   const ins = (instr || '').trim();
   const btn = $('btnDocContinue');
