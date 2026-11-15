@@ -30,7 +30,7 @@ export let activeTabType = 'conv';
 export let activeTabId = null;
 
 // ---------- タブ基盤（conv/doc 共通） ----------
-const tabKey = (t) => (t.type === 'doc' ? 'd:' : t.type === 'graph' ? 'g:' : t.type === 'note' ? 'n:' : '') + t.id;
+const tabKey = (t) => (t.type === 'doc' ? 'd:' : t.type === 'graph' ? 'g:' : t.type === 'note' ? 'n:' : t.type === 'ms' ? 'ms:' : '') + t.id;
 const isActiveTab = (t) => t.type === activeTabType && t.id === activeTabId;
 const tabOpeners = {}; // type -> (id) => Promise
 export function registerTabOpener(type, fn) { tabOpeners[type] = fn; }
@@ -45,11 +45,19 @@ export function activateTab(type, id) {
   saveTabs(); renderTabs();
 }
 let msPaneWasOpen = false;
+let msFullActive = false; // 原稿専用タブ（全開）表示中か
 export function showChatView() {
   $('docPane')?.classList.add('hidden');
   $('graphPane')?.classList.add('hidden');
   $('notePane')?.classList.add('hidden');
   $('chatCol')?.classList.remove('hidden');
+  $('manuscriptPane')?.classList.remove('ms-full');
+  if (msFullActive) {
+    // 原稿タブから戻ってきた：全開ペインを閉じる（通常のサイドペイン状態に戻す）
+    msFullActive = false;
+    $('manuscriptPane')?.classList.add('hidden');
+    $('qbManuscript')?.classList.remove('active');
+  }
   if (msPaneWasOpen) {
     msPaneWasOpen = false;
     $('manuscriptPane')?.classList.remove('hidden');
@@ -57,31 +65,52 @@ export function showChatView() {
   }
 }
 export function showDocView() {
+  msFullActive = false;
   msPaneWasOpen = !!$('manuscriptPane') && !$('manuscriptPane').classList.contains('hidden');
   $('chatCol')?.classList.add('hidden');
   $('manuscriptPane')?.classList.add('hidden');
+  $('manuscriptPane')?.classList.remove('ms-full');
   $('paramsPanel')?.classList.add('hidden');
   $('graphPane')?.classList.add('hidden');
   $('notePane')?.classList.add('hidden');
   $('docPane')?.classList.remove('hidden');
 }
 export function showGraphView() {
+  msFullActive = false;
   msPaneWasOpen = !!$('manuscriptPane') && !$('manuscriptPane').classList.contains('hidden');
   $('chatCol')?.classList.add('hidden');
   $('manuscriptPane')?.classList.add('hidden');
+  $('manuscriptPane')?.classList.remove('ms-full');
   $('paramsPanel')?.classList.add('hidden');
   $('docPane')?.classList.add('hidden');
   $('graphPane')?.classList.remove('hidden');
   $('notePane')?.classList.add('hidden');
 }
 export function showNotesView() {
+  msFullActive = false;
   msPaneWasOpen = !!$('manuscriptPane') && !$('manuscriptPane').classList.contains('hidden');
   $('chatCol')?.classList.add('hidden');
   $('manuscriptPane')?.classList.add('hidden');
+  $('manuscriptPane')?.classList.remove('ms-full');
   $('paramsPanel')?.classList.add('hidden');
   $('docPane')?.classList.add('hidden');
   $('graphPane')?.classList.add('hidden');
   $('notePane')?.classList.remove('hidden');
+}
+// 原稿専用タブ：原稿ペインを全幅表示（ms-fullでwidth:auto/flex:1になる）
+export function showMsView() {
+  msPaneWasOpen = false;
+  msFullActive = true;
+  $('chatCol')?.classList.add('hidden');
+  $('docPane')?.classList.add('hidden');
+  $('graphPane')?.classList.add('hidden');
+  $('notePane')?.classList.add('hidden');
+  $('paramsPanel')?.classList.add('hidden');
+  const p = $('manuscriptPane');
+  p?.classList.remove('hidden');
+  p?.classList.add('ms-full');
+  $('qbManuscript')?.classList.add('active');
+  convTitleEl.textContent = '原稿';
 }
 
 // プロジェクト名の一覧（会話とソースの project を統合した名前空間）
@@ -347,7 +376,10 @@ export function renderTabs() {
     const isDoc = t.type === 'doc';
     const isGraph = t.type === 'graph';
     const isNote = t.type === 'note';
-    const title = isNote
+    const isMs = t.type === 'ms';
+    const title = isMs
+      ? '原稿'
+      : isNote
       ? 'ノート'
       : isGraph
       ? '物語グラフ'
@@ -355,7 +387,7 @@ export function renderTabs() {
       ? (allDocs.find(x => x.id === t.id)?.title || '読み込み中…')
       : (conversations.find(x => x.id === t.id)?.title || '読み込み中…');
     const div = document.createElement('div');
-    div.className = 'tab' + (isActiveTab(t) ? ' active' : '') + (isDoc || isGraph || isNote ? ' tab-doc' : '') + (isGraph ? ' tab-graph' : '');
+    div.className = 'tab' + (isActiveTab(t) ? ' active' : '') + (isDoc || isGraph || isNote || isMs ? ' tab-doc' : '') + (isGraph ? ' tab-graph' : '') + (isMs ? ' tab-ms' : '');
     const titleEl = document.createElement('span');
     titleEl.className = 'tab-title';
     titleEl.textContent = title || '無題';
@@ -638,11 +670,14 @@ export async function restoreTabs() {
         ? { type: 'graph', id: x.slice(2) }
         : (typeof x === 'string' && x.startsWith('n:'))
         ? { type: 'note', id: x.slice(2) }
+        : (typeof x === 'string' && x.startsWith('ms:'))
+        ? { type: 'ms', id: x.slice(3) }
         : { type: 'conv', id: x });
     const valid = parsed.filter(t =>
       t.type === 'doc' ? allDocs.some(d => d.id === t.id)
       : t.type === 'graph' ? t.id === 'main'
       : t.type === 'note' ? t.id === 'main'
+      : t.type === 'ms' ? t.id === 'main'
       : conversations.some(c => c.id === t.id));
     if (valid.length) {
       tabs = valid;

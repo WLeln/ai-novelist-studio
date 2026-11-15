@@ -4,7 +4,7 @@ import { api, appPrompt, appConfirm, appAlert, appDialog, downloadFile, showResu
 import { allCards, current, config, styleSampleBlock } from './state.js';
 import { callApiOnce } from './context.js';
 import { Chart, registerables } from './vendor.bundle.js';
-import { showChatView, activateTab, showEmptyChat, tabs as convTabs } from './conversations.js';
+import { showChatView, showMsView, activateTab, registerTabOpener, showEmptyChat, activeTabType, tabs as convTabs } from './conversations.js';
 
 let manuscript = { title: '無題', chapters: [] };
 let msSel = { chapterId: null, sceneId: null };
@@ -203,6 +203,12 @@ export function linkedSceneContext() {
 // 原稿ペインを前面に出す。doc/graph/noteビューからのジャンプ時は
 // チャットビュー＋会話タブに戻さないとペインが混在しタブ状態も壊れる
 export function msRevealPane() {
+  // 原稿専用タブ表示中はそのまま全開ペインを使う
+  if (activeTabType === 'ms') {
+    $('manuscriptPane')?.classList.remove('hidden');
+    $('qbManuscript')?.classList.add('active');
+    return;
+  }
   showChatView();
   if (current) activateTab('conv', current.id);
   else {
@@ -406,8 +412,16 @@ export function initReadability() {
 export function toggleManuscriptPane() {
   const pane = $('manuscriptPane');
   pane.classList.toggle('hidden');
+  pane.classList.remove('ms-full'); // サイドペインとして開く時は600px固定
   $('qbManuscript')?.classList.toggle('active', !pane.classList.contains('hidden'));
 }
+
+// 原稿専用タブ：全幅表示で開く
+export function openMsTab() {
+  activateTab('ms', 'main');
+  showMsView();
+}
+registerTabOpener('ms', openMsTab);
 
 // ---------- 縦書きプレビュー ----------
 export function toggleMsVertical() {

@@ -2,10 +2,10 @@
 import { $, chatEl, inputEl, convTitleEl, searchBox, searchResultsEl } from './dom.js';
 import { api, esc, appPrompt } from './util.js';
 import { config, fun, abortCtrl, allTemplates, current, setConfig, setAllCards, setAllTemplates } from './state.js';
-import { loadManuscript, toggleManuscriptPane, exportManuscript, exportManuscriptHtml, msAddChapter, msAddScene, msDelete, msDuplicateScene, msDuplicateChapter, msScene, scheduleMsSave, msSetGoal, msForeshadowCheck, updateMsStats, openWritingChart, openChapterChart, msAiWrite, msWriteChapter, toggleMsBoard, toggleMsVertical, restoreMsVertical, msShowAiParts, initReadability, msSelectionToCard, msPinSelection, msInsertPrevTail, msGotoScene, msFormatScene, initMsResize } from './manuscript.js';
+import { loadManuscript, toggleManuscriptPane, openMsTab, exportManuscript, exportManuscriptHtml, msAddChapter, msAddScene, msDelete, msDuplicateScene, msDuplicateChapter, msScene, scheduleMsSave, msSetGoal, msForeshadowCheck, updateMsStats, openWritingChart, openChapterChart, msAiWrite, msWriteChapter, toggleMsBoard, toggleMsVertical, restoreMsVertical, msShowAiParts, initReadability, msSelectionToCard, msPinSelection, msInsertPrevTail, msGotoScene, msFormatScene, initMsResize } from './manuscript.js';
 import { refreshSources, openSourcesModal, fillSourceProjectSelect, resetSourceForm, saveSource, deleteSource, importSourceFile, renderSourceList } from './sources.js';
 import { refreshDocuments, initDocEditor } from './documents.js';
-import { refreshConvList, restoreTabs, newConversation, renameConversation, saveProfile, deleteSelectedConvs, clearConvSelection, renderConvList, onSearchInput, queueDraftSave, refreshSceneSelect } from './conversations.js';
+import { refreshConvList, restoreTabs, newConversation, renameConversation, saveProfile, deleteSelectedConvs, clearConvSelection, renderConvList, onSearchInput, queueDraftSave, refreshSceneSelect, closeTab } from './conversations.js';
 import { initScrollWatch, exportDoc } from './messages.js';
 import { send, sendInstruction, insertSceneDivider, insertChapterDivider, altVersion } from './chat.js';
 import { compressContext } from './context.js';
@@ -62,12 +62,17 @@ function bindUI() {
     }
   });
   $('btnSidebarToggle').onclick = toggleSidebar;
-  // 原稿ペイン
-  $('qbManuscript').onclick = toggleManuscriptPane;
+  // 原稿：クイックボタンは専用タブ（全開）で開く。サイドペインはAI追記時のmsRevealPane等で600px表示
+  $('qbManuscript').onclick = openMsTab;
   $('qbAutoMs').onclick = toggleAutoMs;
   $('btnMsClose').onclick = () => {
-    $('manuscriptPane').classList.add('hidden');
-    $('qbManuscript')?.classList.remove('active');
+    const pane = $('manuscriptPane');
+    if (pane.classList.contains('ms-full')) {
+      closeTab({ type: 'ms', id: 'main' }); // 専用タブとして開いている時はタブを閉じる
+    } else {
+      pane.classList.add('hidden');
+      $('qbManuscript')?.classList.remove('active');
+    }
   };
   $('btnMsExport').onclick = exportManuscript;
   $('btnMsExportHtml') && ($('btnMsExportHtml').onclick = () => exportManuscriptHtml(true));
