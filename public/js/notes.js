@@ -406,7 +406,9 @@ function onSuggestKeydown(e) {
 }
 
 // タブオープナーはモジュール読み込み時に登録（restoreTabsより前に必要）
-registerTabOpener('note', () => { showNotesView(); refreshNotes(); });
+// activateTab必須：これを呼ばないとactiveTabTypeがconvのまま残り、
+// アクティブ扱いの会話タブをクリックしても no-op になり画面から出られなくなる
+registerTabOpener('note', () => { activateTab('note', 'main'); showNotesView(); refreshNotes(); });
 
 export function showNotesViewEntry() {
   activateTab('note', 'main');
