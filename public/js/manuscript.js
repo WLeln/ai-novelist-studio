@@ -1,7 +1,7 @@
 // ---------- Manuscript（原稿ペイン） ----------
 import { $ } from './dom.js';
 import { api, appPrompt, appConfirm, appAlert, appDialog, downloadFile, showResultModal, esc } from './util.js';
-import { allCards, current, config } from './state.js';
+import { allCards, current, config, styleSampleBlock } from './state.js';
 import { callApiOnce } from './context.js';
 import { Chart, registerables } from './vendor.bundle.js';
 
@@ -169,7 +169,7 @@ export function listManuscriptScenes() {
   const out = [];
   for (const ch of manuscript.chapters) {
     for (const sc of ch.scenes) {
-      out.push({ id: sc.id, title: sc.title, chapter: ch.title, content: sc.content || '' });
+      out.push({ id: sc.id, title: sc.title, chapter: ch.title, content: sc.content || '', plot: sc.plot || '' });
     }
   }
   return out;
@@ -315,6 +315,8 @@ export async function msForeshadowCheck() {
 function updateMsEditor() {
   const sc = msScene();
   $('msSceneTitle').value = sc ? sc.title : '';
+  const pm = $('msPlotMemo');
+  if (pm) pm.value = sc ? (sc.plot || '') : '';
   $('msEditor').value = sc ? sc.content : '';
   clearTimeout(rdTimer);
   $('msReadability')?.classList.add('hidden');
@@ -529,7 +531,9 @@ export async function msAiWrite() {
       { role: 'user', content: [
         `【章】${ch?.title || ''}`,
         `【シーン】${sc.title}`,
+        sc.plot ? `【プロットメモ】${sc.plot}` : '',
         styleText ? `【文体指定】${styleText}` : '',
+        styleSampleBlock() || '',
         lengthHint ? `【指示】${lengthHint}字程度で執筆してください` : '',
         prevTail,
         tail,
@@ -581,6 +585,7 @@ export async function msDuplicateScene() {
     id: msUid(),
     title: (sc.title || 'シーン') + 'のコピー',
     content: sc.content || '',
+    ...(sc.plot ? { plot: sc.plot } : {}),
     ...(sc.aiSnippets?.length ? { aiSnippets: sc.aiSnippets.map(s => ({ ...s })) } : {})
   };
   const idx = ch.scenes.findIndex(s => s.id === sc.id);
@@ -596,6 +601,7 @@ export async function msDuplicateChapter() {
     title: (ch.title || '章') + 'のコピー',
     scenes: ch.scenes.map(s => ({
       id: msUid(), title: s.title, content: s.content || '',
+      ...(s.plot ? { plot: s.plot } : {}),
       ...(s.aiSnippets?.length ? { aiSnippets: s.aiSnippets.map(x => ({ ...x })) } : {})
     }))
   };
@@ -670,6 +676,12 @@ function renderMsBoard() {
       card.querySelector('.ms-scene-card-meta').textContent =
         `${(sc.content || '').length.toLocaleString()}字` + (sc.aiSnippets?.length ? ` · AI${sc.aiSnippets.length}` : '');
       card.querySelector('.ms-scene-card-prev').textContent = first || '（未執筆）';
+      if (sc.plot) {
+        const pm = document.createElement('div');
+        pm.className = 'ms-scene-card-plot hint';
+        pm.textContent = '📋 ' + sc.plot;
+        card.appendChild(pm);
+      }
       card.onclick = () => {
         msSel.chapterId = ch.id; msSel.sceneId = sc.id;
         renderMsTree(); updateMsEditor(); renderMsBoard();
@@ -854,5 +866,128 @@ export function renderMsPins() {
       if (st) { st.textContent = 'ピン留めをコピーしました'; setTimeout(() => { if (st.textContent === 'ピン留めをコピーしました') st.textContent = ''; }, 2000); }
     };
     el.appendChild(chip);
+  }
+}
+
+// ---------- AIテキストをシーン末尾に追記（相談回答の反映など） ----------
+export function msAppendAiText(text) {
+  const sc = msScene();
+  const t = (text || '').trim();
+  if (!sc || !t) return false;
+  sc.content = (sc.content || '').trimEnd() ? (sc.content || '').trimEnd() + '\n\n' + t : t;
+  recordAiSnippet(sc, t);
+  renderMsTree();
+  updateMsEditor();
+  scheduleMsSave();
+  updateMsStats();
+  return true;
+}
+
+// ---------- 組版HTML出力（《漢字|よみ》ルビ・《＊字》傍点） ----------
+function typesetLine(line) {
+  let s = esc(line);
+  // 《＊…》 傍点
+  s = s.replace(/《\*([^》]+)》/g, '<span class="emphasis-dots">$1</span>');
+  // 《漢字|よみ》 ルビ
+  s = s.replace(/《([^|》]+)\|([^》]+)》/g, '<ruby>$1<rt>$2</rt></ruby>');
+  return s;
+}
+export function exportManuscriptHtml(vertical = true) {
+  if (!manuscript.chapters.length) { appAlert('原稿がまだありません'); return; }
+  let body = '';
+  for (const ch of manuscript.chapters) {
+    body += `<section class="chapter"><h2>${esc(ch.title)}</h2>`;
+    for (const sc of ch.scenes) {
+      const paras = (sc.content || '').split(/\n{2,}/).map(p => p.trim()).filter(Boolean);
+      body += `<section class="scene"><h3>${esc(sc.title)}</h3>` +
+        paras.map(p => `<p>${typesetLine(p).replace(/\n/g, '<br>')}</p>`).join('') +
+        `</section>`;
+    }
+    body += `</section>`;
+  }
+  const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">
+<title>${esc(manuscript.title || 'manuscript')}</title>
+<style>
+body { font-family: "Hiragino Mincho ProN","Yu Mincho",serif; max-width: 42em; margin: 2em auto; padding: 0 1em; line-height: 2; }
+h1 { font-size: 1.6em; text-align: center; }
+h2 { font-size: 1.2em; border-bottom: 1px solid #ccc; padding-bottom: .3em; margin-top: 2em; }
+h3 { font-size: 1.05em; color: #555; }
+${vertical ? 'body { writing-mode: vertical-rl; }' : ''}
+ruby rt { font-size: .5em; }
+.emphasis-dots { text-emphasis: dot; -webkit-text-emphasis: dot; }
+p { margin: .8em 0; text-indent: 1em; }
+</style></head><body>
+<h1>${esc(manuscript.title || '無題')}</h1>${body}
+</body></html>`;
+  downloadFile((manuscript.title || 'manuscript') + '.html', html, 'text/html');
+}
+
+// ---------- 章まとめてAI執筆（空シーンを順番に生成） ----------
+let msChapterWriteCancel = false;
+export function msCancelChapterWrite() { msChapterWriteCancel = true; }
+export async function msWriteChapter() {
+  const ch = msChapter();
+  if (!ch) { appAlert('章を選択してください（ツリーの章名をクリック）'); return; }
+  const empties = ch.scenes.filter(s => !(s.content || '').trim());
+  if (!empties.length) { appAlert('この章に空のシーンがありません'); return; }
+  const targets = empties.slice(0, 10);
+  if (targets.length < empties.length) {
+    if (!(await appConfirm(`この章には空シーンが${empties.length}件あります。先頭${targets.length}件のみ生成します。続けますか？`))) return;
+  } else if (!(await appConfirm(`この章の空シーン${targets.length}件に、順番にAIが本文を執筆します。よろしいですか？`))) return;
+
+  msChapterWriteCancel = false;
+  const btn = $('btnMsWriteChapter');
+  if (btn) btn.disabled = true;
+  const st = $('msStatus');
+  try {
+    for (let i = 0; i < targets.length; i++) {
+      if (msChapterWriteCancel) break;
+      const sc = targets[i];
+      if ((sc.content || '').trim()) continue; // 生成中にユーザーが書いた場合はスキップ
+      if (st) st.textContent = `章AI執筆 ${i + 1}/${targets.length}「${sc.title}」生成中…`;
+      // 直前シーン（この章内・生成済みを含む）の末尾を文脈に
+      const idx = ch.scenes.findIndex(s => s.id === sc.id);
+      const prev = idx > 0 ? ch.scenes[idx - 1] : null;
+      const prevTail = prev && (prev.content || '').trim()
+        ? `【直前のシーン「${prev.title}」末尾】\n${prev.content.trim().slice(-1200)}` : '';
+      const selIds = new Set(current?.cardIds || []);
+      const cardText = allCards
+        .filter(c => selIds.size ? selIds.has(c.id) : true)
+        .filter(c => c.content)
+        .slice(0, 10)
+        .map(c => `【${c.name}】（${c.kind || 'term'}）\n${(c.content || '').slice(0, 500)}`)
+        .join('\n\n')
+        .slice(0, 7000);
+      const styleText = config?.stylePreset || '';
+      const { text } = await callApiOnce([
+        { role: 'system', content: 'あなたは小説家です。指定されたシーンの本文のみを執筆してください。見出し・説明・前置き・Markdown装飾は一切不要で、本文だけを出力してください。文体・視点・トーンは指定があればそれに従い、直前の本文がある場合はその流れを自然に継いでください。' },
+        { role: 'user', content: [
+          `【章】${ch.title}`,
+          `【シーン】${sc.title}`,
+          sc.plot ? `【プロットメモ】${sc.plot}` : '',
+          styleText ? `【文体指定】${styleText}` : '',
+          styleSampleBlock() || '',
+          prevTail,
+          cardText ? `【設定・登場人物】\n${cardText}` : '',
+          'このシーンの本文を最初から執筆してください。'
+        ].filter(Boolean).join('\n\n') }
+      ]);
+      const add = (text || '').trim();
+      if (add && ch.scenes.includes(sc) && !(sc.content || '').trim()) {
+        sc.content = add;
+        recordAiSnippet(sc, add);
+        if (sc.id === msSel.sceneId) { renderMsTree(); updateMsEditor(); }
+        else renderMsTree();
+        scheduleMsSave();
+        updateMsStats();
+      }
+    }
+    if (st) st.textContent = msChapterWriteCancel ? '章AI執筆を中断しました' : '章AI執筆が完了しました';
+  } catch (e) {
+    if (st) st.textContent = '生成失敗: ' + (e.message || e);
+  } finally {
+    if (btn) btn.disabled = false;
+    msChapterWriteCancel = false;
+    setTimeout(() => { if (st && (st.textContent.includes('章AI執筆') || st.textContent === '章AI執筆が完了しました')) st.textContent = ''; }, 4000);
   }
 }

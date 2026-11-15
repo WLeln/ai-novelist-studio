@@ -1,6 +1,6 @@
 // ---------- Tabゴースト補完：カーソル位置にAIの続きを薄字表示→Tabで確定 ----------
 import { $ } from './dom.js';
-import { config } from './state.js';
+import { config, styleSampleBlock } from './state.js';
 import { callApiOnce } from './context.js';
 
 let ghostEl = null, taEl = null, wrapEl = null;
@@ -75,7 +75,7 @@ async function requestSuggestion() {
   try {
     const before = v.slice(Math.max(0, s - 1500), s);
     const after = v.slice(e, e + 300);
-    const style = config?.stylePreset ? `【文体】${config.stylePreset}\n` : '';
+    const style = (config?.stylePreset ? `【文体】${config.stylePreset}\n` : '') + (styleSampleBlock() ? styleSampleBlock() + '\n' : '');
     const { text } = await callApiOnce([
       { role: 'system', content: 'あなたは小説の続きを書く共著者です。与えられた本文の直後に続く文章を、1〜2文（40〜80字程度）だけ出力してください。説明・引用符・Markdown・改行は不要で、本文の続きだけを出力してください。' },
       { role: 'user', content: `${style}【本文（カーソルより前・末尾）】\n${before}\n\n【本文（カーソルより後・冒頭）】\n${after}\n\nカーソル位置の直後に続く文章を書いてください。` }

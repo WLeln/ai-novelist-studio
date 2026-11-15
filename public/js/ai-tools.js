@@ -8,6 +8,7 @@ import { addBotMsg, renderBotContent, addBotActions, updateCharCount, mdRender, 
 import { saveConversation, renderConvList } from './conversations.js';
 import { refreshCards } from './cards.js';
 import { msScene } from './manuscript.js';
+import { styleSampleText, saveStyleSample, clearStyleSample } from './state.js';
 
 // ---------- 執筆パイプライン ----------
 const PIPELINE_STEPS = [
@@ -304,6 +305,30 @@ export function openStyleAnalyzer() {
   $('btnStyleSaveCard').classList.add('hidden');
   $('btnStyleSaveDNA')?.classList.add('hidden');
   $('styleStatus').textContent = '';
+  syncStyleSampleButtons();
+  $('btnStyleSaveSample') && ($('btnStyleSaveSample').onclick = saveStyleSampleFromModal);
+  $('btnStyleClearSample') && ($('btnStyleClearSample').onclick = clearStyleSampleFromModal);
+}
+
+// 文体お手本（サンプル文そのものをAI生成に注入）の登録状態をボタンに反映
+function syncStyleSampleButtons() {
+  const has = !!styleSampleText().trim();
+  $('btnStyleSaveSample') && ($('btnStyleSaveSample').classList.toggle('hidden', has));
+  $('btnStyleClearSample') && ($('btnStyleClearSample').classList.toggle('hidden', !has));
+  const st = $('styleStatus');
+  if (st && has && !st.dataset.locked) st.textContent = '文体お手本が登録されています（全AI生成に自動注入中）';
+}
+export function saveStyleSampleFromModal() {
+  const t = ($('styleSample')?.value || '').trim();
+  if (!t) { appAlert('サンプル本文を入力してください'); return; }
+  saveStyleSample(t);
+  syncStyleSampleButtons();
+  appAlert('文体お手本を登録しました。以降のAI生成（チャット・AI執筆・共著提案・ゴースト補完・シーン相談）すべてに自動注入されます');
+}
+export function clearStyleSampleFromModal() {
+  clearStyleSample();
+  syncStyleSampleButtons();
+  appAlert('文体お手本を解除しました');
 }
 
 export function fillStyleSample(from) {

@@ -1,7 +1,7 @@
 // ---------- Send / Completion engine ----------
 import { $, chatEl, inputEl, sendBtn, stopBtn, tokenBadgeEl } from './dom.js';
 import { esc, appAlert, appPrompt, nekoifyInput, api } from './util.js';
-import { config, current, fun, busy, abortCtrl, allSources, pendingStyle, setBusyState, setAbortCtrl, setPendingStyle, draftKey } from './state.js';
+import { config, current, fun, busy, abortCtrl, allSources, pendingStyle, setBusyState, setAbortCtrl, setPendingStyle, draftKey, styleSampleBlock } from './state.js';
 import { addMsg, addBotMsg, addUserActions, addBotActions, addSceneDivider, renderBotContent, scrollChat, updateCharCount } from './messages.js';
 import { saveConversation, refreshConvList, openConversation } from './conversations.js';
 import { selectedCardsText, maybeAutoCompress, rawStartIndex, compressAgedMemories, callApiOnce } from './context.js';
@@ -113,6 +113,8 @@ function composeSystemPrompt(opts = {}) {
     const dna = localStorage.getItem('style_dna');
     if (dna && dna.trim()) parts.push('【文体DNA（この文体で執筆すること）】\n' + dna.trim().slice(0, 2500));
   } catch {}
+  const ss = styleSampleBlock();
+  if (ss) parts.push(ss);
   if (p.plot?.trim()) parts.push('【プロット】\n' + applyVars(p.plot.trim()));
   if (p.summary?.trim()) parts.push('【これまでのあらすじ（圧縮済み）】\n' + applyVars(p.summary.trim()));
   if (config.params.hybridMemory !== false) {

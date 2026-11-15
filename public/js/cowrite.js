@@ -1,7 +1,7 @@
 // ---------- AI共著執筆：原稿へのインライン提案（採用/却下/別案） ----------
 import { $ } from './dom.js';
 import { appAlert } from './util.js';
-import { allCards, config } from './state.js';
+import { allCards, config, styleSampleBlock } from './state.js';
 import { callApiOnce } from './context.js';
 import { msScene, msCommitAiEdit, listManuscriptScenes } from './manuscript.js';
 
@@ -27,7 +27,7 @@ function sceneEntry() {
   const sc = msScene();
   if (!sc) return null;
   const flat = listManuscriptScenes();
-  return flat.find(x => x.id === sc.id) || { id: sc.id, title: sc.title, chapter: '', content: sc.content || '' };
+  return flat.find(x => x.id === sc.id) || { id: sc.id, title: sc.title, chapter: '', content: sc.content || '', plot: sc.plot || '' };
 }
 
 // 関連カード：シーン本文中に名前が出るカード＋文体カード
@@ -57,7 +57,9 @@ function buildPrompt(t, instr) {
   const ctx = [
     entry ? `【章】${entry.chapter || ''}` : '',
     entry ? `【シーン】${entry.title || ''}` : '',
+    entry?.plot ? `【プロットメモ】${entry.plot}` : '',
     styleText ? `【文体指定】${styleText}` : '',
+    styleSampleBlock() || '',
     prev ? `【直前のシーン「${prev.title}」末尾】\n${(prev.content || '').slice(-1000)}` : '',
     next ? `【次のシーン「${next.title}」冒頭】\n${(next.content || '').slice(0, 400)}` : '',
     cards ? `【関連する設定・登場人物】\n${cards}` : ''

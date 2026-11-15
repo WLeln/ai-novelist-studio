@@ -2,7 +2,7 @@
 import { $, chatEl, inputEl, convTitleEl, searchBox, searchResultsEl } from './dom.js';
 import { api, esc, appPrompt } from './util.js';
 import { config, fun, abortCtrl, allTemplates, current, setConfig, setAllCards, setAllTemplates } from './state.js';
-import { loadManuscript, toggleManuscriptPane, exportManuscript, msAddChapter, msAddScene, msDelete, msDuplicateScene, msDuplicateChapter, msScene, scheduleMsSave, msSetGoal, msForeshadowCheck, updateMsStats, openWritingChart, openChapterChart, msAiWrite, toggleMsBoard, toggleMsVertical, restoreMsVertical, msShowAiParts, initReadability, msSelectionToCard, msPinSelection, msInsertPrevTail, msGotoScene, msFormatScene } from './manuscript.js';
+import { loadManuscript, toggleManuscriptPane, exportManuscript, exportManuscriptHtml, msAddChapter, msAddScene, msDelete, msDuplicateScene, msDuplicateChapter, msScene, scheduleMsSave, msSetGoal, msForeshadowCheck, updateMsStats, openWritingChart, openChapterChart, msAiWrite, msWriteChapter, toggleMsBoard, toggleMsVertical, restoreMsVertical, msShowAiParts, initReadability, msSelectionToCard, msPinSelection, msInsertPrevTail, msGotoScene, msFormatScene } from './manuscript.js';
 import { refreshSources, openSourcesModal, fillSourceProjectSelect, resetSourceForm, saveSource, deleteSource, importSourceFile, renderSourceList } from './sources.js';
 import { refreshDocuments, initDocEditor } from './documents.js';
 import { refreshConvList, restoreTabs, newConversation, renameConversation, saveProfile, deleteSelectedConvs, clearConvSelection, renderConvList, onSearchInput, queueDraftSave, refreshSceneSelect } from './conversations.js';
@@ -28,6 +28,7 @@ import { initGhostWrite } from './ghostwrite.js';
 import { initConsult } from './sceneconsult.js';
 import { initSceneHist } from './scenehist.js';
 import { initBackup } from './backup.js';
+import { initCardExtract } from './cardextract.js';
 
 // ---------- Init ----------
 async function init() {
@@ -68,6 +69,7 @@ function bindUI() {
     $('qbManuscript')?.classList.remove('active');
   };
   $('btnMsExport').onclick = exportManuscript;
+  $('btnMsExportHtml') && ($('btnMsExportHtml').onclick = () => exportManuscriptHtml(true));
   $('btnMsAddChapter').onclick = msAddChapter;
   $('btnMsAddScene').onclick = msAddScene;
   $('btnMsDel').onclick = msDelete;
@@ -77,6 +79,7 @@ function bindUI() {
   $('btnMsChart').onclick = openWritingChart;
   $('btnMsChChart').onclick = openChapterChart;
   $('btnMsWrite').onclick = msAiWrite;
+  $('btnMsWriteChapter') && ($('btnMsWriteChapter').onclick = msWriteChapter);
   $('btnMsAiParts').onclick = msShowAiParts;
   $('btnMsBoard').onclick = toggleMsBoard;
   $('btnMsVertical').onclick = toggleMsVertical;
@@ -91,6 +94,11 @@ function bindUI() {
   $('msSceneTitle').addEventListener('input', () => {
     const sc = msScene(); if (!sc) return;
     sc.title = $('msSceneTitle').value;
+    scheduleMsSave();
+  });
+  $('msPlotMemo')?.addEventListener('input', () => {
+    const sc = msScene(); if (!sc) return;
+    sc.plot = $('msPlotMemo').value.slice(0, 2000);
     scheduleMsSave();
   });
   $('msEditor').addEventListener('input', () => {
@@ -144,6 +152,7 @@ function bindUI() {
   initConsult();
   initSceneHist();
   initBackup();
+  initCardExtract();
   initReadability();
   initScrollWatch();
   $('btnSettings').onclick = openSettings;

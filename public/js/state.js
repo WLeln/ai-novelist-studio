@@ -55,3 +55,19 @@ export const fun = {
 };
 export const saveFun = (k) => localStorage.setItem('fun_' + k, fun[k] ? '1' : '0');
 localStorage.setItem('fun_mood', fun.mood);
+
+// ---------- 文体お手本（自分の文章サンプルをAI生成に自動注入） ----------
+export function styleSampleText() {
+  try { return (localStorage.getItem('style_sample') || '').slice(0, 4000); } catch { return ''; }
+}
+export function saveStyleSample(text) {
+  try { localStorage.setItem('style_sample', String(text || '').slice(0, 4000)); } catch {}
+}
+export function clearStyleSample() {
+  try { localStorage.removeItem('style_sample'); } catch {}
+}
+// プロンプト注入用ブロック（空なら空文字）
+export function styleSampleBlock() {
+  const t = styleSampleText().trim();
+  return t ? `【文体お手本（この筆致・語彙・リズムを忠実に模倣すること）】\n${t}` : '';
+}

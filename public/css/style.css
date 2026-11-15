@@ -934,7 +934,7 @@ body.cat-ears #convTitle::after { left: 26px; transform: rotate(14deg); }
   border-top: 1px solid var(--border); padding: 10px 14px;
   display: flex; flex-direction: column; gap: 8px; max-height: 55%;
 }
-#msSceneTitle, #msEditor {
+#msSceneTitle, #msPlotMemo, #msEditor {
   border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
   background: var(--bg-input); color: var(--text);
   font-family: inherit; transition: border-color 0.15s, box-shadow 0.15s;
@@ -942,7 +942,11 @@ body.cat-ears #convTitle::after { left: 26px; transform: rotate(14deg); }
 #msSceneTitle {
   font-weight: 600; padding: 8px 11px; font-size: 13px;
 }
-#msSceneTitle:focus, #msEditor:focus {
+#msPlotMemo {
+  padding: 6px 11px; font-size: 12px; color: var(--text-dim);
+}
+#msPlotMemo:focus { color: var(--text); }
+#msSceneTitle:focus, #msPlotMemo:focus, #msEditor:focus {
   outline: none; border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
@@ -1504,3 +1508,13 @@ button,
 .hist-diff-add { background: rgba(80, 180, 100, .15); }
 .hist-diff-del { background: rgba(220, 90, 90, .15); }
 .hist-diff-ctx { color: var(--text-dim); }
+
+/* ---------- カード抽出・登場シーン・プロットメモ ---------- */
+.extract-item { display: flex; gap: 8px; align-items: baseline; padding: 8px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 6px; cursor: pointer; }
+.extract-item:hover { border-color: var(--border-strong); }
+.extract-name { font-weight: 600; }
+.extract-desc { flex: 1; min-width: 0; }
+.consult-btns { display: flex; gap: 6px; margin-top: 6px; }
+.consult-btns .qb { font-size: 11px; padding: 2px 8px; }
+.ms-scene-card-plot { font-size: 11px; color: var(--text-dim); margin-top: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+#cardScenes a { color: var(--accent); }

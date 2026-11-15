@@ -202,6 +202,10 @@ export function addBotActions(el, msgObj, msgIndex) {
   mk('読み上げ', 'volume', () => toggleSpeak(msgObj.content), 'この応答を音声で読み上げ');
   mk('原稿', 'book', () => adoptToManuscript(msgObj.content, { src: 'ai' }), 'この応答を原稿ペインに追加');
   mk('原稿:新シーン', 'book', () => adoptToManuscript(msgObj.content, { newScene: true, src: 'ai' }), '新しいシーンを作ってこの応答を追加');
+  mk('カード抽出', 'card', async () => {
+    const { openCardExtract } = await import('./cardextract.js');
+    openCardExtract(msgObj.content, 'AI応答');
+  }, 'この応答から登場人物・世界観・用語などのカード候補をAI抽出');
   mk('ドキュメント', 'edit', () => sendTextToDocument(msgObj.content), 'リッチテキストドキュメントに送る（同名なら追記）');
   if (msgObj._summary) {
     mk('メモに追加', 'card', () => appendToMemo(msgObj.content), 'このあらすじを文脈メモに追加');

@@ -630,6 +630,8 @@ function cardCRUD(route, kind, store) {
       resolved: b.resolved === true,
       triggers: String(b.triggers || '').slice(0, 500),
       tags: String(b.tags || '').slice(0, 500),
+      aliases: String(b.aliases || '').slice(0, 500),
+      relations: String(b.relations || '').slice(0, 2000),
       created: Date.now()
     };
     writeDoc(kind, id, store[id]);
@@ -645,6 +647,8 @@ function cardCRUD(route, kind, store) {
     if (typeof b.resolved === 'boolean') c.resolved = b.resolved;
     if (typeof b.triggers === 'string') c.triggers = b.triggers.slice(0, 500);
     if (typeof b.tags === 'string') c.tags = b.tags.slice(0, 500);
+    if (typeof b.aliases === 'string') c.aliases = b.aliases.slice(0, 500);
+    if (typeof b.relations === 'string') c.relations = b.relations.slice(0, 2000);
     writeDoc(kind, req.params.id, c);
     res.json(c);
   });
@@ -731,10 +735,12 @@ app.put('/api/manuscript', (req, res) => {
                 }))
                 .filter(n => n.q || n.a)
             : undefined;
+          const plot = typeof sc.plot === 'string' ? sc.plot.slice(0, 2000) : undefined;
           return {
             id: sid,
             title: String(sc.title || '無題').slice(0, 200),
             content: trimmed,
+            ...(plot ? { plot } : {}),
             ...(aiSnippets && aiSnippets.length ? { aiSnippets } : {}),
             ...(aiNotes && aiNotes.length ? { aiNotes } : {})
           };

@@ -29,3 +29,8 @@ Express + SQLite（node:sqlite）のバックエンド（server.js）と、バ�
 - シーン相談: `public/js/sceneconsult.js`、原稿ツールバー「相談」。シーンの`aiNotes`（Q&A・最大20件）に保存。PUT /api/manuscriptでサニタイズ
 - シーン履歴: `public/js/scenehist.js`、原稿ツールバー「履歴」。server.jsが原稿PUT時に本文変更シーンの旧版をkind='scenehist'に記録（20版/シーン・30万字）。`/api/scenehist/:sceneId[/:idx]`
 - バックアップ: `public/js/backup.js`、ツールメニュー「バックアップ / 復元」。`/api/backup`で全docsをJSONダンプ（tmsnap系除外・config含む）、`/api/backup/restore`で全置換＋メモリ再構築→リロード
+- カード知識DB化: cardCRUDに`aliases`/`relations`フィールド。cards.jsに登場シーン逆引き（カード名+別名でシーン/ソース検索→`window.__openScene`ジャンプ）。`cardextract.js`でAI応答・相談回答からカード候補を抽出（messages.jsの「カード抽出」ボタン、consultの「カード化」ボタンから動的import）
+- 原稿プロットメモ: シーンの`plot`フィールド（2000字）。`msPlotMemo`入力・ボード表示・AIコンテキスト（cowrite/msAiWrite/msWriteChapter/consult）に注入
+- 組版出力: `exportManuscriptHtml()`。本文中の`《漢字|よみ》`→ルビ、`《＊字》`→傍点としてHTML出力（縦書きCSS付き）
+- 文体お手本: `style_sample`（localStorage・state.jsのstyleSampleBlock()）。文体分析モーダル「お手本として登録」で保存。composeSystemPrompt/cowrite/msAiWrite/msWriteChapter/ghostwrite/sceneconsultに自動注入
+- 章AI執筆: `msWriteChapter()`（manuscript.js）。章内の空シーンを最大10件まで順番に生成。`msAppendAiText()`で相談回答などをシーン末尾にAI追記

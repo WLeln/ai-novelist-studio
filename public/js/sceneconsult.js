@@ -1,9 +1,9 @@
 // ---------- シーン相談：シーン別のAI Q&A（履歴はシーンに保存） ----------
 import { $ } from './dom.js';
 import { esc, fmtDate } from './util.js';
-import { allCards, config } from './state.js';
+import { allCards, config, styleSampleBlock } from './state.js';
 import { callApiOnce } from './context.js';
-import { msScene, listManuscriptScenes, scheduleMsSave } from './manuscript.js';
+import { msScene, listManuscriptScenes, scheduleMsSave, msAppendAiText } from './manuscript.js';
 
 const el = (id) => $(id);
 let busy = false;
@@ -30,9 +30,13 @@ function buildContext(sc) {
   const notes = (sc.aiNotes || []).slice(-6)
     .map(n => `Q: ${n.q}\nA: ${String(n.a).slice(0, 300)}`)
     .join('\n\n');
+  const plot = sc.plot ? `【プロットメモ】${sc.plot}` : '';
+  const sample = styleSampleBlock();
   return [
     `【章・シーン】${flat[idx]?.chapter || ''} / ${sc.title || ''}`,
+    plot,
     config?.stylePreset ? `【文体指定】${config.stylePreset}` : '',
+    sample || '',
     prev ? `【直前のシーン「${prev.title}」末尾】\n${(prev.content || '').slice(-800)}` : '',
     `【このシーンの本文】\n${text.slice(-6000) || '（未執筆）'}`,
     next ? `【次のシーン「${next.title}」冒頭】\n${(next.content || '').slice(0, 300)}` : '',
@@ -50,11 +54,33 @@ function renderLog() {
     log.innerHTML = '<p class="hint">まだ相談はありません。下の欄に質問を入力してください。</p>';
     return;
   }
-  log.innerHTML = notes.map(n => `
+  log.innerHTML = notes.map((n, i) => `
     <div class="consult-item">
       <div class="consult-q"><span class="hint">${fmtDate(n.ts)}</span> ${esc(n.q)}</div>
       <div class="consult-a">${esc(n.a)}</div>
+      <div class="consult-btns">
+        <button class="qb consult-apply" data-i="${i}">本文に反映</button>
+        <button class="qb consult-card" data-i="${i}">カード化</button>
+      </div>
     </div>`).join('');
+  log.querySelectorAll('.consult-apply').forEach(b => {
+    b.onclick = () => {
+      const n = msScene()?.aiNotes?.[parseInt(b.dataset.i, 10)];
+      if (!n) return;
+      if (msAppendAiText(n.a)) {
+        const st = el('consultStatus');
+        if (st) { st.textContent = '回答を本文に追記しました'; setTimeout(() => { st.textContent = ''; }, 2500); }
+      }
+    };
+  });
+  log.querySelectorAll('.consult-card').forEach(b => {
+    b.onclick = async () => {
+      const n = msScene()?.aiNotes?.[parseInt(b.dataset.i, 10)];
+      if (!n) return;
+      const { openCardExtract } = await import('./cardextract.js');
+      openCardExtract(`【質問】${n.q}\n\n【回答】\n${n.a}`, 'シーン相談の回答');
+    };
+  });
   log.scrollTop = log.scrollHeight;
 }
 

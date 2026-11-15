@@ -59,7 +59,9 @@ export function selectedCardsText() {
     if (c) {
       const status = c.kind === 'foreshadow' ? (c.resolved ? '（回収済み）' : '（未回収）') : '';
       const auto = !(current?.cardIds || []).includes(id) ? '（自動選択）' : '';
-      parts.push(`【${CARD_KINDS[c.kind] || '設定'}: ${c.name}${status}${auto}】\n${c.content}`);
+      const rel = c.relations ? `\n関係: ${c.relations}` : '';
+      const alias = c.aliases ? `\n別名: ${c.aliases}` : '';
+      parts.push(`【${CARD_KINDS[c.kind] || '設定'}: ${c.name}${status}${auto}】\n${c.content}${rel}${alias}`);
     }
   }
   return parts.join('\n\n');

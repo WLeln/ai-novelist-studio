@@ -390,6 +390,7 @@
           <span class="ms-title">原稿</span>
           <div class="ms-actions">
             <button id="btnMsExport" class="btn-ghost btn-sm">出力</button>
+            <button id="btnMsExportHtml" class="btn-ghost btn-sm" title="《漢字|よみ》ルビ・《＊字》傍点を組版したHTMLで出力">HTML出力</button>
             <button id="btnMsClose" class="btn-ghost btn-sm">閉じる</button>
           </div>
         </div>
@@ -401,6 +402,7 @@
           <button id="btnMsDupCh" class="btn-ghost btn-sm" title="選択中の章をシーンごと複製">章複製</button>
           <button id="btnMsForeshadow" class="btn-ghost btn-sm">伏線チェック</button>
           <button id="btnMsWrite" class="btn-ghost btn-sm">AI執筆</button>
+          <button id="btnMsWriteChapter" class="btn-ghost btn-sm" title="この章の空シーンを順番にAIが執筆します（最大10シーン）">章をAI執筆</button>
           <button id="btnMsAiParts" class="btn-ghost btn-sm">AI部分</button>
           <button id="btnMsConsult" class="btn-ghost btn-sm" title="このシーンについてAIに相談（Q&Aはシーンに保存されます）">相談</button>
           <button id="btnMsHist" class="btn-ghost btn-sm" title="このシーンの編集履歴（自動記録・過去版に復元可）">履歴</button>
@@ -434,6 +436,7 @@
         <div id="msTree"></div>
         <div class="ms-editor">
           <input id="msSceneTitle" placeholder="シーン名">
+          <input id="msPlotMemo" placeholder="プロットメモ（目的・登場人物・場所・感情など。ボードにも表示）" title="このシーンのプロットメモ。本文とは別に保存され、AIの文脈にも使われます">
           <div id="msPins" class="ms-pins hidden"></div>
           <textarea id="msEditor" placeholder="ここに本文を書きます。AI応答の「原稿」ボタンで追記できます"></textarea>
           <div id="msAiDock">
@@ -654,6 +657,9 @@
         <label style="flex-direction:row;align-items:center;gap:6px;font-size:12px"><input type="checkbox" id="cResolved"> 回収済み</label>
         <input type="text" id="cTriggers" placeholder="自動注入キーワード（カンマ区切り・本文に出たら自動注入。例: アリス, 銀の鍵, 魔王城）">
         <input type="text" id="cTags" placeholder="タグ（プロンプトで #名前=会話中有効 / ##名前=今回のみ呼び出し。カンマ区切り）">
+        <input type="text" id="cAliases" placeholder="別名・読み（カンマ区切り。登場シーン検索・言及スキャンにも使われます）">
+        <textarea id="cRelations" rows="2" placeholder="関係・つながり（例: アリスの姉 / 魔王城の主 / 銀の鍵の持ち主）"></textarea>
+        <div id="cardScenes" class="hint" style="font-size:11px"></div>
         <textarea id="cContent" rows="6" placeholder="設定内容"></textarea>
         <div class="params-row">
           <button id="btnSaveCard" class="btn-primary btn-sm">保存</button>
@@ -891,6 +897,8 @@
     </div>
     <div class="modal-footer">
       <button id="btnStyleAnalyze" class="btn-primary">分析する</button>
+      <button id="btnStyleSaveSample" class="btn-ghost" title="このサンプル文を「文体お手本」として保存。以降のAI生成すべてに自動注入されます">お手本として登録</button>
+      <button id="btnStyleClearSample" class="btn-ghost hidden">お手本を解除</button>
       <button id="btnStyleSavePreset" class="btn-ghost hidden">文体プリセットに保存</button>
       <button id="btnStyleSaveCard" class="btn-ghost hidden">カードに追加</button>
       <button id="btnStyleSaveDNA" class="btn-ghost hidden" title="この文体指示文を全会話のシステムプロンプトに自動注入">文体DNAとして保存</button>
@@ -959,6 +967,25 @@
         <div id="histList" style="width:280px;flex-shrink:0;max-height:56vh;overflow-y:auto"></div>
         <div id="histDetail" style="flex:1;min-width:0;max-height:56vh;overflow-y:auto"></div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- AI応答からのカード抽出モーダル -->
+<div id="extractModal" class="modal hidden">
+  <div class="modal-content" style="width:min(640px,94vw)">
+    <div class="modal-header">
+      <h2><svg class="icon"><use href="#i-card"/></svg> カード抽出</h2>
+      <button class="modal-close" id="btnCloseExtract"><svg class="icon"><use href="#i-close"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <p class="hint" id="extractSrc" style="margin:0 0 8px"></p>
+      <div id="extractStatus" class="hint"></div>
+      <div id="extractList" style="max-height:50vh;overflow-y:auto"></div>
+    </div>
+    <div class="modal-footer">
+      <button id="btnExtractRun" class="btn-primary btn-sm">AIで候補を抽出</button>
+      <button id="btnExtractSave" class="btn-ghost btn-sm hidden">選択したものをカード化</button>
     </div>
   </div>
 </div>
