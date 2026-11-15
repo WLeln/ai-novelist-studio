@@ -1105,6 +1105,86 @@ app.delete('/api/project-presets/:project', (req, res) => {
 });
 
 // ---------- Chat proxy (SSE対応) ----------
+// のべりすと非OpenAI互換モデル：ネイティブ Text Completion API（POST {base}/api）用
+// これらは v1/chat/completions を持たず、{text,length,model,...} → {data:{'0':...}} 形式
+const NATIVE_MODELS = new Set([
+  'spiko', 'spiko_solid', 'spiko_max', 'derrida_03', 'damsel_ray',
+  'supertrin_highpres', 'supertrin_maxpres', 'damsel', 'supertrin'
+]);
+const nativeMsgText = (c) => {
+  if (typeof c === 'string') return c;
+  if (Array.isArray(c)) return c.map(p => (typeof p === 'string' ? p : (p && p.text) || '')).join('');
+  return '';
+};
+// messages配列をネイティブAPIの単一テキストへ直列化。
+// このAPIはチャット形式を持たない継続生成型なので、会話ログ形式にして末尾「AI:」の続きとして生成させる
+function buildNativePrompt(messages) {
+  const sys = [], turns = [];
+  for (const m of Array.isArray(messages) ? messages : []) {
+    const text = nativeMsgText(m && m.content).trim();
+    if (!text) continue;
+    if (m.role === 'system') sys.push(text);
+    else if (m.role === 'assistant') turns.push('AI: ' + text);
+    else turns.push('ユーザー: ' + text);
+  }
+  const head = 'あなたは小説執筆を助けるAIです。以下は会話ログです。最後の「ユーザー:」の発言にだけ返答してください。「ユーザー:」の行は出力しないでください。';
+  const body = turns.join('\n\n');
+  return head + (sys.length ? '\n\n[設定]\n' + sys.join('\n\n') : '') + '\n\n' + body + '\n\nAI:';
+}
+async function nativeChat(res, body, headers, nativeBase) {
+  const prompt = buildNativePrompt(body.messages);
+  if (!prompt.trim() || prompt === 'AI:') {
+    return res.status(400).json({ error: 'プロンプトが空です' });
+  }
+  const length = Math.min(Math.max(parseInt(body.max_tokens, 10) || 2048, 1), 2048);
+  let upstream;
+  try {
+    upstream = await fetch(nativeBase + '/api', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        text: prompt,
+        length,
+        temperature: typeof body.temperature === 'number' ? body.temperature : 0.8,
+        top_p: typeof body.top_p === 'number' ? body.top_p : 0.95,
+        rep_pen: 1.3,
+        model: body.model,
+        // 返答後にモデルが架空の会話ターンを生成し続けるのを防ぐ
+        stoptokens: 'ユーザー:<<|>>[設定]<<|>>AI:'
+      }),
+      signal: AbortSignal.timeout(300000)
+    });
+  } catch (e) {
+    return res.status(502).json({ error: 'APIに接続できません: ' + e.message });
+  }
+  const text = await upstream.text();
+  let j = null;
+  try { j = JSON.parse(text); } catch {}
+  if (j && j.error && !j.data) {
+    const msg = typeof j.error === 'string' ? j.error : (j.error.message || JSON.stringify(j.error));
+    return res.status(400).json({ error: msg });
+  }
+  const d = j && j.data;
+  let content = (d && (d['0'] ?? d[0])) ?? (typeof d === 'string' ? d : null);
+  if (content == null) {
+    return res.status(502).json({ error: 'APIの応答を解釈できません: ' + text.slice(0, 200) });
+  }
+  // 保険：stoptokensをすり抜けた場合に備え、最初の「ユーザー:」「[設定]」行以降を切り捨てる
+  const trimmed = String(content).split(/\n(?=ユーザー:|\[設定\]|AI:)/)[0].trim();
+  content = trimmed || String(content).trim();
+  if (!content) {
+    return res.status(502).json({ error: 'APIが空の応答を返しました' });
+  }
+  // OpenAI互換レスポンスに包んで返す（ストリーミング非対応のため常にJSON）
+  res.json({
+    id: 'chatcmpl-native',
+    object: 'chat.completion',
+    created: Math.floor(Date.now() / 1000),
+    model: body.model,
+    choices: [{ index: 0, message: { role: 'assistant', content: String(content) }, finish_reason: 'stop' }]
+  });
+}
+
 app.post('/api/chat', async (req, res) => {
   const noAuth = config.noAuth === true;
   if (!config.apiKey && !noAuth) {
@@ -1116,6 +1196,11 @@ app.post('/api/chat', async (req, res) => {
 
   const headers = { 'Content-Type': 'application/json' };
   if (config.apiKey) headers['Authorization'] = 'Bearer ' + config.apiKey;
+
+  // 非OpenAI互換モデルはネイティブAPIへ（/v1を除いたルートの /api）
+  if (NATIVE_MODELS.has(body.model)) {
+    return nativeChat(res, body, headers, base.replace(/\/v1$/, ''));
+  }
 
   let upstream;
   try {
