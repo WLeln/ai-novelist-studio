@@ -2,6 +2,7 @@
 import { $ } from './dom.js';
 import { config, styleSampleBlock } from './state.js';
 import { callApiOnce } from './context.js';
+import { msCommitAiEdit } from './manuscript.js';
 
 let ghostEl = null, taEl = null, wrapEl = null;
 let suggestion = null;      // { text, start, end }
@@ -99,8 +100,12 @@ function schedule() {
 function accept() {
   if (!suggestion) return false;
   const { text, start, end } = suggestion;
-  taEl.setRangeText(text, start, end, 'end');
-  taEl.dispatchEvent(new Event('input', { bubbles: true })); // sc.content同期＋保存デバウンス
+  // msCommitAiEdit 経由でAI出所（aiSnippets）にも記録される
+  if (!msCommitAiEdit(start, end, text)) return false;
+  // updateMsEditorでvalue再設定されるため、カーソルを挿入末尾に戻す
+  const pos = start + text.length;
+  taEl.setSelectionRange(pos, pos);
+  taEl.focus();
   hideGhost();
   return true;
 }

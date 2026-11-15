@@ -11,7 +11,10 @@ let activeTag = '';
 let saveTimer = null;
 let dirty = false;
 
-const noteByName = (name) => notes.find(n => n.name === name);
+const noteByName = (name) => {
+  const t = String(name || '').trim();
+  return notes.find(n => (n.name || '').trim() === t);
+};
 const noteLinks = (content) => {
   const out = new Set();
   const re = /\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g;
@@ -180,6 +183,8 @@ export async function openNote(id) {
   $('noteName').value = n.name || '';
   $('noteContent').value = n.content || '';
   dirty = false;
+  sug = null;
+  sugEl()?.classList.add('hidden');
   setStatus('');
   renderNoteList();
   renderNoteTags();
@@ -203,6 +208,8 @@ async function newNote() {
 async function deleteNote() {
   if (!currentNote) return;
   if (!(await appConfirm(`「${currentNote.name}」を削除しますか？`))) return;
+  clearTimeout(saveTimer); // 削除後に保存タイマーが発火して404にならないように
+  dirty = false;
   await api('/api/notes/' + currentNote.id, { method: 'DELETE' });
   notes = notes.filter(n => n.id !== currentNote.id);
   currentNote = null;
@@ -239,6 +246,165 @@ async function promoteToSource() {
   } catch (e) { appAlert('ソース登録失敗: ' + e.message); }
 }
 
+// ---------- 筆記特化型IME：[[リンク]]・#タグのオートコンプリート ----------
+// textarea上で「[[」「#」を打つと候補ポップアップが出て、Tab/Enterで確定できる
+let sug = null; // {kind:'link'|'tag', start, query, items, sel}
+
+function sugEl() {
+  let el = $('noteSuggest');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'noteSuggest';
+    el.className = 'note-suggest hidden';
+    $('noteMain')?.appendChild(el);
+  }
+  return el;
+}
+
+function allTags() {
+  const s = new Set();
+  for (const n of notes) for (const t of noteTags(n.content)) s.add(t);
+  return [...s];
+}
+
+// キャレット位置の画面座標をミラーdivで計測
+function caretXY(ta, pos) {
+  const cs = getComputedStyle(ta);
+  const mirror = document.createElement('div');
+  mirror.style.cssText = [
+    'position:absolute', 'top:0', 'left:0', 'visibility:hidden', 'white-space:pre-wrap',
+    'word-wrap:break-word', 'overflow-wrap:break-word',
+    `width:${ta.clientWidth}px`, `font:${cs.font}`, `line-height:${cs.lineHeight}`,
+    `letter-spacing:${cs.letterSpacing}`, `padding:${cs.padding}`, `border:${cs.border}`,
+    `box-sizing:${cs.boxSizing}`, `tab-size:${cs.tabSize}`
+  ].join(';');
+  const pre = document.createTextNode(ta.value.slice(0, pos));
+  const marker = document.createElement('span');
+  marker.textContent = '​';
+  mirror.appendChild(pre); mirror.appendChild(marker);
+  document.body.appendChild(mirror);
+  const taRect = ta.getBoundingClientRect();
+  const mRect = marker.getBoundingClientRect();
+  const mr = mirror.getBoundingClientRect();
+  mirror.remove();
+  return {
+    x: taRect.left + (mRect.left - mr.left) - ta.scrollLeft,
+    y: taRect.top + (mRect.top - mr.top) - ta.scrollTop
+  };
+}
+
+function detectSug(ta) {
+  const pos = ta.selectionStart;
+  if (ta.selectionEnd !== pos) return null;
+  const before = ta.value.slice(0, pos);
+  let m = before.match(/\[\[([^\[\]]*)$/);
+  if (m) {
+    const query = m[1];
+    const items = [];
+    const q = query.trim().toLowerCase();
+    const exact = noteByName(query);
+    const ranked = notes
+      .filter(n => n.name && (!q || n.name.toLowerCase().includes(q)))
+      .sort((a, b) => {
+        const an = a.name.toLowerCase(), bn = b.name.toLowerCase();
+        const ap = an.startsWith(q) ? 0 : 1, bp = bn.startsWith(q) ? 0 : 1;
+        return ap - bp || an.localeCompare(bn, 'ja');
+      })
+      .slice(0, 8)
+      .map(n => ({ label: n.name, insert: `[[${n.name}]]`, kind: 'note' }));
+    items.push(...ranked);
+    if (q && !exact) items.push({ label: `＋新規ノート「${query.trim()}」`, insert: null, kind: 'new', name: query.trim().replace(/[\[\]]/g, '') });
+    if (!items.length && !q) items.push({ label: '（ノート名を入力）', disabled: true });
+    return { kind: 'link', start: pos - m[0].length, query, items, sel: 0 };
+  }
+  m = before.match(/#([^\s#、。，．,.!?！？「」『』()（）\[\]]*)$/);
+  if (m) {
+    const query = m[1];
+    const q = query.toLowerCase();
+    const tags = allTags()
+      .filter(t => !q || t.toLowerCase().includes(q))
+      .sort((a, b) => a.localeCompare(b, 'ja'))
+      .slice(0, 8)
+      .map(t => ({ label: '#' + t, insert: '#' + t, kind: 'tag' }));
+    return { kind: 'tag', start: pos - m[0].length, query, items: tags, sel: 0 };
+  }
+  return null;
+}
+
+function renderSug(ta) {
+  const el = sugEl();
+  if (!sug || !sug.items.length) { el.classList.add('hidden'); return; }
+  el.innerHTML = '';
+  sug.items.forEach((it, i) => {
+    const d = document.createElement('div');
+    d.className = 'note-suggest-item' + (i === sug.sel ? ' sel' : '') + (it.disabled ? ' disabled' : '');
+    d.textContent = it.label;
+    d.onmousedown = (e) => { e.preventDefault(); acceptSug(ta, i); }; // blurで消えないようmousedownで確定
+    el.appendChild(d);
+  });
+  const { x, y } = caretXY(ta, ta.selectionStart);
+  const mainRect = $('noteMain')?.getBoundingClientRect();
+  let px = x, py = y + 4;
+  if (mainRect) {
+    px = Math.max(mainRect.left + 8, Math.min(px, mainRect.right - 240));
+    py = Math.max(mainRect.top + 8, Math.min(py, mainRect.bottom - sug.items.length * 26 - 12));
+  }
+  el.style.left = px + 'px';
+  el.style.top = py + 'px';
+  el.classList.remove('hidden');
+}
+
+function updateSug(ta) {
+  const next = detectSug(ta);
+  if (!next) { sug = null; sugEl().classList.add('hidden'); return; }
+  if (sug && sug.kind === next.kind && sug.start === next.start && sug.query === next.query) {
+    next.sel = Math.min(sug.sel, next.items.length - 1);
+  }
+  sug = next;
+  renderSug(ta);
+}
+
+async function acceptSug(ta, idx) {
+  if (!sug) return;
+  const it = sug.items[idx];
+  if (!it || it.disabled) return;
+  const pos = ta.selectionStart;
+  let insertText = it.insert;
+  if (it.kind === 'new') {
+    try {
+      const n = await api('/api/notes', { method: 'POST', body: JSON.stringify({ name: it.name.slice(0, 100), content: '' }) });
+      notes.push(n);
+      insertText = `[[${n.name}]]`;
+    } catch { return; }
+  }
+  if (insertText == null) return;
+  ta.setRangeText(insertText, sug.start, pos, 'end');
+  ta.dispatchEvent(new Event('input', { bubbles: true }));
+  sug = null;
+  sugEl().classList.add('hidden');
+  renderNoteList();
+  renderNoteLinks();
+}
+
+function onSuggestKeydown(e) {
+  const ta = $('noteContent');
+  if (!ta || e.isComposing) return;
+  if (!sug || sugEl().classList.contains('hidden')) return;
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    const d = e.key === 'ArrowDown' ? 1 : -1;
+    sug.sel = (sug.sel + d + sug.items.length) % sug.items.length;
+    renderSug(ta);
+  } else if (e.key === 'Enter' || e.key === 'Tab') {
+    e.preventDefault();
+    acceptSug(ta, sug.sel);
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    sug = null;
+    sugEl().classList.add('hidden');
+  }
+}
+
 export function showNotesViewEntry() {
   activateTab('note', 'main');
   showNotesView();
@@ -257,7 +423,14 @@ export function initNotes() {
   $('btnNoteCard')?.addEventListener('click', promoteToCard);
   $('btnNoteSource')?.addEventListener('click', promoteToSource);
   $('noteName')?.addEventListener('input', scheduleSave);
-  $('noteContent')?.addEventListener('input', () => { scheduleSave(); renderNoteTags(); });
+  $('noteContent')?.addEventListener('input', () => {
+    scheduleSave();
+    renderNoteTags();
+    updateSug($('noteContent'));
+  });
+  $('noteContent')?.addEventListener('keydown', onSuggestKeydown);
+  $('noteContent')?.addEventListener('click', () => updateSug($('noteContent')));
+  $('noteContent')?.addEventListener('blur', () => setTimeout(() => { sug = null; sugEl().classList.add('hidden'); }, 150));
   $('noteSearch')?.addEventListener('input', (e) => {
     searchQuery = e.target.value;
     renderNoteList();

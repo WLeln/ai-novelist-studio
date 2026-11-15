@@ -743,11 +743,14 @@ export async function msSelectionToCard() {
   if (!ta || !sc) return;
   const sel = ta.value.slice(ta.selectionStart, ta.selectionEnd).trim();
   if (!sel) { appAlert('カードにする文章を本文で選択してください'); return; }
+  // ダイアログ表示で選択位置がずれないよう、先に範囲を確定する
+  const selStart = ta.selectionStart, selEnd = ta.selectionEnd;
   const name = await appPrompt('カード名を入力（人物名・用語・設定など）', sel.slice(0, 30));
   if (name === null) return;
   const nm = name.trim() || sel.slice(0, 30);
-  const before = ta.value.slice(Math.max(0, ta.selectionStart - 200), ta.selectionStart);
-  const after = ta.value.slice(ta.selectionEnd, ta.selectionEnd + 200);
+  const cur = ta.value;
+  const before = cur.slice(Math.max(0, selStart - 200), selStart);
+  const after = cur.slice(selEnd, selEnd + 200);
   const content = `【出典】原稿「${sc.title}」で選択して登録\n\n…${before}【${sel}】${after}…`;
   const c = await api('/api/cards', { method: 'POST', body: JSON.stringify({ name: nm, kind: 'term', content }) });
   const { refreshCards } = await import('./cards.js');
@@ -937,7 +940,8 @@ export async function msWriteChapter() {
 
   msChapterWriteCancel = false;
   const btn = $('btnMsWriteChapter');
-  if (btn) btn.disabled = true;
+  const btnLabel = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = false; btn.textContent = '中断'; btn.onclick = msCancelChapterWrite; }
   const st = $('msStatus');
   try {
     for (let i = 0; i < targets.length; i++) {
@@ -986,8 +990,8 @@ export async function msWriteChapter() {
   } catch (e) {
     if (st) st.textContent = '生成失敗: ' + (e.message || e);
   } finally {
-    if (btn) btn.disabled = false;
     msChapterWriteCancel = false;
+    if (btn) { btn.textContent = btnLabel; btn.onclick = msWriteChapter; }
     setTimeout(() => { if (st && (st.textContent.includes('章AI執筆') || st.textContent === '章AI執筆が完了しました')) st.textContent = ''; }, 4000);
   }
 }

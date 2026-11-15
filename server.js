@@ -633,7 +633,8 @@ function cardCRUD(route, kind, store) {
       tags: String(b.tags || '').slice(0, 500),
       aliases: String(b.aliases || '').slice(0, 500),
       relations: String(b.relations || '').slice(0, 2000),
-      created: Date.now()
+      created: Date.now(),
+      updated: Date.now()
     };
     writeDoc(kind, id, store[id]);
     res.json(store[id]);
@@ -650,6 +651,7 @@ function cardCRUD(route, kind, store) {
     if (typeof b.tags === 'string') c.tags = b.tags.slice(0, 500);
     if (typeof b.aliases === 'string') c.aliases = b.aliases.slice(0, 500);
     if (typeof b.relations === 'string') c.relations = b.relations.slice(0, 2000);
+    c.updated = Date.now();
     writeDoc(kind, req.params.id, c);
     res.json(c);
   });
@@ -813,12 +815,19 @@ app.post('/api/backup/restore', (req, res) => {
   const docs = req.body && req.body.docs;
   if (!Array.isArray(docs) || !docs.length) return res.status(400).json({ error: 'バックアップファイルが不正です' });
   flushAllWrites();
+  // payloadにconfigが無い場合に備え、既存config行を退避（APIキー消失防止）
+  const savedConfig = db.prepare("SELECT kind, id, data, updated FROM docs WHERE kind = 'config'").all();
   db.exec('DELETE FROM docs');
   const ins = db.prepare('INSERT INTO docs (kind, id, data, updated) VALUES (?, ?, ?, ?)');
   let n = 0;
+  let hasConfig = false;
   for (const d of docs) {
     if (!d || typeof d.kind !== 'string' || typeof d.id !== 'string' || typeof d.data !== 'string') continue;
+    if (d.kind === 'config') hasConfig = true;
     try { ins.run(d.kind, d.id, d.data, Number(d.updated) || Date.now()); n++; } catch {}
+  }
+  if (!hasConfig) {
+    for (const d of savedConfig) { try { ins.run(d.kind, d.id, d.data, d.updated); n++; } catch {} }
   }
   rebuildMemoryStores(docs);
   res.json({ ok: true, restored: n });

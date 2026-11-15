@@ -35,3 +35,4 @@ Express + SQLite（node:sqlite）のバックエンド（server.js）と、バ�
 - 文体お手本: `style_sample`（localStorage・state.jsのstyleSampleBlock()）。文体分析モーダル「お手本として登録」で保存。composeSystemPrompt/cowrite/msAiWrite/msWriteChapter/ghostwrite/sceneconsultに自動注入
 - 章AI執筆: `msWriteChapter()`（manuscript.js）。章内の空シーンを最大10件まで順番に生成。`msAppendAiText()`で相談回答などをシーン末尾にAI追記
 - ノート（Zettelkasten）: `public/js/notes.js`、タブtype `note`（singleton id='main'、タブキー `n:`）。kind='note' を cardCRUD でCRUD（/api/notes）。`[[名前]]`リンク・`#タグ`・被リンク一覧・カード/ソース昇格。ビューは showNotesView（conversations.js）
+- ノートIME: notes.js内。noteContentで `[[` →ノート名補完（Tab/Enter確定・未作成なら新規作成候補）、`#` →タグ補完。position:fixedの #noteSuggest ポップアップ

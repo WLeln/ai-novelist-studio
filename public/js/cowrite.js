@@ -5,7 +5,7 @@ import { allCards, config, styleSampleBlock } from './state.js';
 import { callApiOnce } from './context.js';
 import { msScene, msCommitAiEdit, listManuscriptScenes } from './manuscript.js';
 
-let pending = null; // { mode:'insert'|'replace', start, end, params }
+let pending = null; // { mode:'insert'|'replace', start, end, params, base }
 let generating = false;
 
 const el = (id) => $(id);
@@ -93,7 +93,7 @@ async function suggest() {
   const sc = msScene();
   if (!sc) { appAlert('シーンを選択してください'); return; }
   const instr = (el('msAiInstr')?.value || '').trim();
-  pending = { ...t, instr, sceneId: sc.id };
+  pending = { ...t, instr, sceneId: sc.id, base: sc.content || '' };
   const { system, user } = buildPrompt(t, instr);
   generating = true;
   setBusyUI(true);
@@ -136,6 +136,12 @@ function accept() {
   if (!pending) return;
   if (msScene()?.id !== pending.sceneId) {
     appAlert('シーンが切り替わったため適用できません。もう一度提案を生成してください');
+    hidePreview();
+    return;
+  }
+  // 提案生成後に本文が編集されているとオフセットがずれて破壊するため、変更検知して再生成を促す
+  if ((msScene()?.content || '') !== pending.base) {
+    appAlert('提案の生成後に本文が変更されました。位置がずれるため、もう一度提案を生成してください');
     hidePreview();
     return;
   }
