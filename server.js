@@ -1107,10 +1107,14 @@ app.delete('/api/project-presets/:project', (req, res) => {
 // ---------- Chat proxy (SSE対応) ----------
 // のべりすと非OpenAI互換モデル：ネイティブ Text Completion API（POST {base}/api）用
 // これらは v1/chat/completions を持たず、{text,length,model,...} → {data:{'0':...}} 形式
-const NATIVE_MODELS = new Set([
-  'spiko', 'spiko_solid', 'spiko_max', 'derrida_03', 'damsel_ray',
-  'supertrin_highpres', 'supertrin_maxpres', 'damsel', 'supertrin'
-]);
+// モデル別の入力コンテキスト上限（トークン）。超過すると上流が空応答/エラーを返すため、
+// プロンプトをこの上限に収まるよう古いターンから削る
+const NATIVE_MODELS = {
+  spiko: { ctx: 40000 }, spiko_solid: { ctx: 40000 }, spiko_max: { ctx: 40000 }, derrida_03: { ctx: 40000 },
+  damsel_ray: { ctx: 12288, out: 400 },
+  supertrin_highpres: { ctx: 9216, out: 400 }, supertrin_maxpres: { ctx: 9216, out: 400 }, supertrin: { ctx: 9216, out: 400 },
+  damsel: { ctx: 2400, out: 400 }
+};
 const nativeMsgText = (c) => {
   if (typeof c === 'string') return c;
   if (Array.isArray(c)) return c.map(p => (typeof p === 'string' ? p : (p && p.text) || '')).join('');
@@ -1118,7 +1122,7 @@ const nativeMsgText = (c) => {
 };
 // messages配列をネイティブAPIの単一テキストへ直列化。
 // このAPIはチャット形式を持たない継続生成型なので、会話ログ形式にして末尾「AI:」の続きとして生成させる
-function buildNativePrompt(messages) {
+function buildNativePrompt(messages, maxChars = Infinity) {
   const sys = [], turns = [];
   for (const m of Array.isArray(messages) ? messages : []) {
     const text = nativeMsgText(m && m.content).trim();
@@ -1128,15 +1132,33 @@ function buildNativePrompt(messages) {
     else turns.push('ユーザー: ' + text);
   }
   const head = 'あなたは小説執筆を助けるAIです。以下は会話ログです。最後の「ユーザー:」の発言にだけ返答してください。「ユーザー:」の行は出力しないでください。';
-  const body = turns.join('\n\n');
-  return head + (sys.length ? '\n\n[設定]\n' + sys.join('\n\n') : '') + '\n\n' + body + '\n\nAI:';
+  // システム部が大きすぎる場合は切り詰める（文体DNA・カード等で肥大化し得る）
+  let sysText = sys.join('\n\n');
+  const sysCap = Math.floor(maxChars * 0.4);
+  if (sysText.length > sysCap) sysText = sysText.slice(0, sysCap) + '…';
+  const sysBlock = sysText ? '\n\n[設定]\n' + sysText : '';
+  const tail = '\n\nAI:';
+  const build = () => head + sysBlock + '\n\n' + turns.join('\n\n') + tail;
+  // コンテキスト超過を防ぐため、収まるまで古いターンから削る（最新の発言は必ず残す）
+  while (turns.length > 1 && build().length > maxChars) turns.shift();
+  if (build().length > maxChars && turns.length) {
+    // 最後の1ターンだけでも超える場合はその本文を切り詰める
+    const t = turns[0];
+    const prefix = t.startsWith('ユーザー: ') ? 'ユーザー: ' : (t.startsWith('AI: ') ? 'AI: ' : '');
+    const room = Math.max(0, maxChars - (build().length - t.length) - 10);
+    turns[0] = prefix + t.slice(prefix.length, prefix.length + room) + '…';
+  }
+  return build();
 }
-async function nativeChat(res, body, headers, nativeBase) {
-  const prompt = buildNativePrompt(body.messages);
+async function nativeChat(res, body, headers, nativeBase, spec) {
+  // 日本語は約1.5字/トークン。出力分とマージンを残して入力側の文字数上限を算出
+  const outMax = Math.min(spec.out || 2048, 2048);
+  const maxChars = Math.floor((spec.ctx - outMax - 800) * 1.4);
+  const prompt = buildNativePrompt(body.messages, maxChars);
   if (!prompt.trim() || prompt === 'AI:') {
     return res.status(400).json({ error: 'プロンプトが空です' });
   }
-  const length = Math.min(Math.max(parseInt(body.max_tokens, 10) || 2048, 1), 2048);
+  const length = Math.min(Math.max(parseInt(body.max_tokens, 10) || outMax, 1), outMax);
   let upstream;
   try {
     upstream = await fetch(nativeBase + '/api', {
@@ -1198,8 +1220,9 @@ app.post('/api/chat', async (req, res) => {
   if (config.apiKey) headers['Authorization'] = 'Bearer ' + config.apiKey;
 
   // 非OpenAI互換モデルはネイティブAPIへ（/v1を除いたルートの /api）
-  if (NATIVE_MODELS.has(body.model)) {
-    return nativeChat(res, body, headers, base.replace(/\/v1$/, ''));
+  const nativeSpec = NATIVE_MODELS[body.model];
+  if (nativeSpec) {
+    return nativeChat(res, body, headers, base.replace(/\/v1$/, ''), nativeSpec);
   }
 
   let upstream;

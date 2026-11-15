@@ -36,3 +36,4 @@ Express + SQLite（node:sqlite）のバックエンド（server.js）と、バ�
 - 章AI執筆: `msWriteChapter()`（manuscript.js）。章内の空シーンを最大10件まで順番に生成。`msAppendAiText()`で相談回答などをシーン末尾にAI追記
 - ノート（Zettelkasten）: `public/js/notes.js`、タブtype `note`（singleton id='main'、タブキー `n:`）。kind='note' を cardCRUD でCRUD（/api/notes）。`[[名前]]`リンク・`#タグ`・被リンク一覧・カード/ソース昇格。ビューは showNotesView（conversations.js）
 - ノートIME: notes.js内。noteContentで `[[` →ノート名補完（Tab/Enter確定・未作成なら新規作成候補）、`#` →タグ補完。position:fixedの #noteSuggest ポップアップ
+- のべりすと非OpenAI互換モデル: server.js `/api/chat` がモデル名で判別しネイティブAPI（`POST {base}/api`、`{text,length,model}`→`{data:{'0'}}`）へルーティング。messagesは会話ログ形式に直列化。モデル別ctx上限（spiko系40k/damsel_ray 12k/supertrin 9k/damsel 2.4kトークン）を超えないよう古いターンから削る。ストリーミング非対応・出力上限2048トークン
