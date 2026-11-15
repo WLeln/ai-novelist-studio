@@ -2,7 +2,7 @@
 import { $, chatEl, inputEl, convTitleEl, searchBox, searchResultsEl } from './dom.js';
 import { api, esc, appPrompt } from './util.js';
 import { config, fun, abortCtrl, allTemplates, current, setConfig, setAllCards, setAllTemplates } from './state.js';
-import { loadManuscript, toggleManuscriptPane, exportManuscript, exportManuscriptHtml, msAddChapter, msAddScene, msDelete, msDuplicateScene, msDuplicateChapter, msScene, scheduleMsSave, msSetGoal, msForeshadowCheck, updateMsStats, openWritingChart, openChapterChart, msAiWrite, msWriteChapter, toggleMsBoard, toggleMsVertical, restoreMsVertical, msShowAiParts, initReadability, msSelectionToCard, msPinSelection, msInsertPrevTail, msGotoScene, msFormatScene } from './manuscript.js';
+import { loadManuscript, toggleManuscriptPane, exportManuscript, exportManuscriptHtml, msAddChapter, msAddScene, msDelete, msDuplicateScene, msDuplicateChapter, msScene, scheduleMsSave, msSetGoal, msForeshadowCheck, updateMsStats, openWritingChart, openChapterChart, msAiWrite, msWriteChapter, toggleMsBoard, toggleMsVertical, restoreMsVertical, msShowAiParts, initReadability, msSelectionToCard, msPinSelection, msInsertPrevTail, msGotoScene, msFormatScene, initMsResize } from './manuscript.js';
 import { refreshSources, openSourcesModal, fillSourceProjectSelect, resetSourceForm, saveSource, deleteSource, importSourceFile, renderSourceList } from './sources.js';
 import { refreshDocuments, initDocEditor } from './documents.js';
 import { refreshConvList, restoreTabs, newConversation, renameConversation, saveProfile, deleteSelectedConvs, clearConvSelection, renderConvList, onSearchInput, queueDraftSave, refreshSceneSelect } from './conversations.js';
@@ -87,6 +87,7 @@ function bindUI() {
   $('btnMsFlow').onclick = openFlowGen;
   $('btnMsToCard').onclick = msSelectionToCard;
   $('btnMsPin').onclick = msPinSelection;
+  initMsResize();
   $('btnMsInsPrev').onclick = msInsertPrevTail;
   document.querySelectorAll('#msFormatMenu [data-fmt]').forEach(b => {
     b.onclick = () => msFormatScene(b.dataset.fmt);

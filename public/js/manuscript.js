@@ -343,6 +343,39 @@ function updateMsEditor() {
   $('msReadability')?.classList.add('hidden');
 }
 
+// ---------- ペイン幅のドラッグ調整 ----------
+export function initMsResize() {
+  const pane = $('manuscriptPane');
+  const handle = $('msResize');
+  if (!pane || !handle) return;
+  const LS = 'ms_pane_w';
+  const saved = parseInt(localStorage.getItem(LS) || '', 10);
+  if (saved >= 320) pane.style.setProperty('--ms-pane-w', Math.min(saved, window.innerWidth * 0.85) + 'px');
+  handle.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    handle.classList.add('active');
+    handle.setPointerCapture(e.pointerId);
+    const startX = e.clientX;
+    const startW = pane.getBoundingClientRect().width;
+    const move = (ev) => {
+      const max = Math.min(1100, window.innerWidth * 0.8);
+      const w = Math.max(340, Math.min(max, startW + (startX - ev.clientX)));
+      pane.style.setProperty('--ms-pane-w', w + 'px');
+    };
+    const up = (ev) => {
+      handle.classList.remove('active');
+      try { handle.releasePointerCapture(ev.pointerId); } catch {}
+      handle.removeEventListener('pointermove', move);
+      handle.removeEventListener('pointerup', up);
+      handle.removeEventListener('pointercancel', up);
+      localStorage.setItem(LS, String(Math.round(pane.getBoundingClientRect().width)));
+    };
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', up);
+    handle.addEventListener('pointercancel', up);
+  });
+}
+
 // ---------- リアルタイム読みやすさゲージ ----------
 let rdTimer = null, rdSeq = 0;
 async function runReadability() {

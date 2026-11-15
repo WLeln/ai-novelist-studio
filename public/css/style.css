@@ -871,9 +871,15 @@ body.cat-ears #convTitle::after { left: 26px; transform: rotate(14deg); }
 #workspace { flex: 1; display: flex; min-height: 0; }
 #chatCol { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 #manuscriptPane {
-  width: 400px; flex-shrink: 0; display: flex; flex-direction: column;
+  width: var(--ms-pane-w, 520px); flex-shrink: 0; display: flex; flex-direction: column;
   background: var(--bg-panel); border-left: 1px solid var(--border);
+  position: relative;
 }
+#msResize {
+  position: absolute; left: -4px; top: 0; bottom: 0; width: 9px;
+  cursor: ew-resize; z-index: 5;
+}
+#msResize:hover, #msResize.active { background: var(--accent); opacity: 0.35; }
 .ms-header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 10px 14px; border-bottom: 1px solid var(--border);
@@ -1042,6 +1048,7 @@ body.cat-ears #convTitle::after { left: 26px; transform: rotate(14deg); }
 :root[data-theme="dark"] .ms-readability.good { color: #7fc79a; }
 @media (max-width: 760px) {
   #manuscriptPane { position: fixed; inset: 0; z-index: 90; width: auto; border-left: none; }
+  #msResize { display: none; }
   .ms-editor { max-height: none; }
 }
 
