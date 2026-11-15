@@ -1,7 +1,7 @@
 // ---------- Documents（リッチテキストエディタのドキュメント） ----------
 import { $, convTitleEl } from './dom.js';
 import { api, esc, appAlert, appConfirm, appPrompt, fmtDate, downloadFile, icon, showResultModal } from './util.js';
-import { allDocs, setAllDocs, allCards } from './state.js';
+import { allDocs, setAllDocs, allCards, styleSampleBlock, overusedWordBlock } from './state.js';
 import { activateTab, registerTabOpener, renderTabs, projectNamesAll, showDocView, closeTab, queueDraftSave, activeTabType } from './conversations.js';
 import { callApiOnce } from './context.js';
 import { runDocLint } from './lint.js';
@@ -297,13 +297,21 @@ async function aiContinueDoc() {
   if (!currentDoc || !editor) return;
   const text = editor.getText().trim();
   if (text.length < 30) { appAlert('先に本文を30字以上入力してください'); return; }
+  const instr = await appPrompt('AIへの指示（任意・空欄なら自然な続き）', '');
+  if (instr === null) return;
+  const ins = (instr || '').trim();
   const btn = $('btnDocContinue');
   if (btn) btn.disabled = true;
   updateDocStatus('AIが続きを生成中…');
   try {
     const { text: out } = await callApiOnce([
       { role: 'system', content: 'あなたは小説家です。与えられた本文の直後に自然に続く文章だけを執筆してください。出力は本文のみ。説明・前置き・Markdown装飾・かぎ括弧の追加は不要です。文体・視点・トーン・一人称/三人称を本文に合わせてください。' },
-      { role: 'user', content: text.slice(-3000) }
+      { role: 'user', content: [
+        text.slice(-3000),
+        ins ? `【指示】${ins}` : '',
+        styleSampleBlock() || '',
+        overusedWordBlock(text.slice(-12000)) || ''
+      ].filter(Boolean).join('\n\n') }
     ]);
     const add = (out || '').trim();
     if (!add) { updateDocStatus('生成結果が空でした'); return; }
