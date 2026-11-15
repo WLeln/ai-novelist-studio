@@ -3,7 +3,7 @@ import { $, chatEl, inputEl, sendBtn, stopBtn, tokenBadgeEl } from './dom.js';
 import { esc, appAlert, appPrompt, nekoifyInput, api } from './util.js';
 import { config, current, fun, busy, abortCtrl, allSources, pendingStyle, setBusyState, setAbortCtrl, setPendingStyle, draftKey, styleSampleBlock } from './state.js';
 import { addMsg, addBotMsg, addUserActions, addBotActions, addSceneDivider, renderBotContent, scrollChat, updateCharCount } from './messages.js';
-import { saveConversation, refreshConvList, openConversation } from './conversations.js';
+import { saveConversation, refreshConvList, renderConvList, openConversation } from './conversations.js';
 import { selectedCardsText, maybeAutoCompress, rawStartIndex, compressAgedMemories, callApiOnce } from './context.js';
 import { lorebookCardsText, tagCardsText, hideTagSug } from './tags.js';
 import { openSettings } from './settings.js';
