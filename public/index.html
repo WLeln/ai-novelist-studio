@@ -118,6 +118,7 @@
     <div class="sidebar-footer">
       <button id="btnCards" class="btn-ghost"><svg class="icon"><use href="#i-card"/></svg> カード</button>
       <button id="btnSources" class="btn-ghost"><svg class="icon"><use href="#i-book"/></svg> ソース</button>
+      <button id="btnNotes" class="btn-ghost"><svg class="icon"><use href="#i-book"/></svg> ノート</button>
       <button id="btnSettings" class="btn-ghost"><svg class="icon"><use href="#i-gear"/></svg> 設定</button>
     </div>
   </aside>
@@ -381,6 +382,44 @@
             </div>
           </div>
           <aside id="graphSide" class="hidden"></aside>
+        </div>
+      </div>
+
+      <!-- ノートペイン（Zettelkasten型） -->
+      <div id="notePane" class="hidden">
+        <div class="note-toolbar">
+          <span class="note-title">ノート</span>
+          <span id="noteStats" class="hint"></span>
+          <span class="note-spacer"></span>
+          <input id="noteSearch" type="search" placeholder="ノートを検索">
+          <button id="btnNoteNew" class="btn-ghost btn-sm">＋ノート</button>
+          <button id="btnNoteClose" class="btn-ghost btn-sm">閉じる</button>
+        </div>
+        <div id="noteBody">
+          <aside id="noteListCol">
+            <div id="noteList"></div>
+          </aside>
+          <div id="noteMain" class="hidden">
+            <input id="noteName" type="text" placeholder="ノート名" class="note-name">
+            <div id="noteTagRow"></div>
+            <textarea id="noteContent" class="note-content" placeholder="本文。[[ノート名]] でリンク、#タグ でタグ付け"></textarea>
+            <div class="note-actions">
+              <button id="btnNoteDelete" class="btn-ghost btn-sm">削除</button>
+              <button id="btnNoteCard" class="btn-ghost btn-sm" title="このノートをカード化">カードにする</button>
+              <button id="btnNoteSource" class="btn-ghost btn-sm" title="このノートをソースに登録">ソースにする</button>
+              <span id="noteStatus" class="hint"></span>
+            </div>
+            <div id="noteLinks" class="hidden">
+              <div class="note-links-title">リンク</div>
+              <div id="noteLinksOut"></div>
+              <div class="note-links-title">被リンク</div>
+              <div id="noteLinksIn"></div>
+            </div>
+          </div>
+          <div id="noteEmpty" class="hidden">
+            <p>ノートがありません。</p>
+            <p class="hint">「＋ノート」で作成。「[[名前]]」で他ノートへリンクできます。</p>
+          </div>
         </div>
       </div>
 

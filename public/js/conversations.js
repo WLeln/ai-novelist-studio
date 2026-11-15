@@ -30,7 +30,7 @@ export let activeTabType = 'conv';
 export let activeTabId = null;
 
 // ---------- タブ基盤（conv/doc 共通） ----------
-const tabKey = (t) => (t.type === 'doc' ? 'd:' : t.type === 'graph' ? 'g:' : '') + t.id;
+const tabKey = (t) => (t.type === 'doc' ? 'd:' : t.type === 'graph' ? 'g:' : t.type === 'note' ? 'n:' : '') + t.id;
 const isActiveTab = (t) => t.type === activeTabType && t.id === activeTabId;
 const tabOpeners = {}; // type -> (id) => Promise
 export function registerTabOpener(type, fn) { tabOpeners[type] = fn; }
@@ -48,6 +48,7 @@ let msPaneWasOpen = false;
 export function showChatView() {
   $('docPane')?.classList.add('hidden');
   $('graphPane')?.classList.add('hidden');
+  $('notePane')?.classList.add('hidden');
   $('chatCol')?.classList.remove('hidden');
   if (msPaneWasOpen) {
     msPaneWasOpen = false;
@@ -61,6 +62,7 @@ export function showDocView() {
   $('manuscriptPane')?.classList.add('hidden');
   $('paramsPanel')?.classList.add('hidden');
   $('graphPane')?.classList.add('hidden');
+  $('notePane')?.classList.add('hidden');
   $('docPane')?.classList.remove('hidden');
 }
 export function showGraphView() {
@@ -70,6 +72,16 @@ export function showGraphView() {
   $('paramsPanel')?.classList.add('hidden');
   $('docPane')?.classList.add('hidden');
   $('graphPane')?.classList.remove('hidden');
+  $('notePane')?.classList.add('hidden');
+}
+export function showNotesView() {
+  msPaneWasOpen = !!$('manuscriptPane') && !$('manuscriptPane').classList.contains('hidden');
+  $('chatCol')?.classList.add('hidden');
+  $('manuscriptPane')?.classList.add('hidden');
+  $('paramsPanel')?.classList.add('hidden');
+  $('docPane')?.classList.add('hidden');
+  $('graphPane')?.classList.add('hidden');
+  $('notePane')?.classList.remove('hidden');
 }
 
 // プロジェクト名の一覧（会話とソースの project を統合した名前空間）
@@ -334,13 +346,16 @@ export function renderTabs() {
   for (const t of tabs) {
     const isDoc = t.type === 'doc';
     const isGraph = t.type === 'graph';
-    const title = isGraph
+    const isNote = t.type === 'note';
+    const title = isNote
+      ? 'ノート'
+      : isGraph
       ? '物語グラフ'
       : isDoc
       ? (allDocs.find(x => x.id === t.id)?.title || '読み込み中…')
       : (conversations.find(x => x.id === t.id)?.title || '読み込み中…');
     const div = document.createElement('div');
-    div.className = 'tab' + (isActiveTab(t) ? ' active' : '') + (isDoc || isGraph ? ' tab-doc' : '') + (isGraph ? ' tab-graph' : '');
+    div.className = 'tab' + (isActiveTab(t) ? ' active' : '') + (isDoc || isGraph || isNote ? ' tab-doc' : '') + (isGraph ? ' tab-graph' : '');
     const titleEl = document.createElement('span');
     titleEl.className = 'tab-title';
     titleEl.textContent = title || '無題';
@@ -621,10 +636,13 @@ export async function restoreTabs() {
         ? { type: 'doc', id: x.slice(2) }
         : (typeof x === 'string' && x.startsWith('g:'))
         ? { type: 'graph', id: x.slice(2) }
+        : (typeof x === 'string' && x.startsWith('n:'))
+        ? { type: 'note', id: x.slice(2) }
         : { type: 'conv', id: x });
     const valid = parsed.filter(t =>
       t.type === 'doc' ? allDocs.some(d => d.id === t.id)
       : t.type === 'graph' ? t.id === 'main'
+      : t.type === 'note' ? t.id === 'main'
       : conversations.some(c => c.id === t.id));
     if (valid.length) {
       tabs = valid;

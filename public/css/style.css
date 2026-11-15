@@ -1518,3 +1518,75 @@ button,
 .consult-btns .qb { font-size: 11px; padding: 2px 8px; }
 .ms-scene-card-plot { font-size: 11px; color: var(--text-dim); margin-top: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 #cardScenes a { color: var(--accent); }
+
+/* ---------- ノート（Zettelkasten） ---------- */
+#notePane {
+  flex: 1; display: flex; flex-direction: column; min-width: 0;
+  background: var(--bg-panel);
+}
+.note-toolbar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 14px; border-bottom: 1px solid var(--border);
+  background: var(--bg-input); flex-shrink: 0;
+}
+.note-title { font-weight: 700; font-size: 14px; }
+.note-spacer { flex: 1; }
+.note-toolbar input[type="search"] {
+  width: 180px; padding: 5px 10px; border: 1px solid var(--border);
+  border-radius: 6px; background: var(--bg-panel); color: var(--text);
+  font-size: 12px;
+}
+#noteBody { flex: 1; display: flex; min-height: 0; }
+#noteListCol {
+  width: 240px; flex-shrink: 0; overflow-y: auto;
+  border-right: 1px solid var(--border); background: var(--bg-input);
+}
+.note-list-empty { padding: 16px; text-align: center; }
+.note-item {
+  padding: 8px 12px; border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+.note-item:hover { background: var(--bg-hover, rgba(255,255,255,.04)); }
+.note-item.active { background: var(--bg-panel); border-left: 3px solid var(--accent); }
+.note-item-name { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.note-item-meta { font-size: 11px; margin-top: 2px; }
+.note-item-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.note-tag {
+  font-size: 10px; padding: 1px 7px; border-radius: 10px;
+  border: 1px solid var(--border); background: none; color: var(--text-dim);
+  cursor: pointer;
+}
+.note-tag:hover, .note-tag.active { color: var(--accent); border-color: var(--accent); }
+#noteMain {
+  flex: 1; display: flex; flex-direction: column; min-width: 0;
+  padding: 16px 20px; gap: 8px; overflow-y: auto;
+}
+.note-name {
+  font-size: 18px; font-weight: 700; padding: 6px 10px;
+  border: 1px solid transparent; border-radius: 6px;
+  background: transparent; color: var(--text);
+}
+.note-name:focus { border-color: var(--border); background: var(--bg-input); outline: none; }
+#noteTagRow { display: flex; flex-wrap: wrap; gap: 4px; min-height: 4px; }
+.note-content {
+  flex: 1; min-height: 200px; resize: none;
+  font-family: inherit; font-size: 14px; line-height: 1.9;
+  padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--bg-input); color: var(--text);
+}
+.note-content:focus { outline: none; border-color: var(--accent); }
+.note-actions { display: flex; align-items: center; gap: 6px; }
+#noteLinks {
+  border-top: 1px solid var(--border); padding-top: 10px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.note-links-title { font-size: 12px; font-weight: 600; color: var(--text-dim); }
+#noteLinksOut, #noteLinksIn { display: flex; flex-wrap: wrap; gap: 6px; }
+.note-link-btn {
+  font-size: 12px; padding: 3px 10px; border-radius: 12px;
+  border: 1px solid var(--border); background: var(--bg-input);
+  color: var(--accent); cursor: pointer;
+}
+.note-link-btn:hover:not(:disabled) { border-color: var(--accent); }
+.note-link-btn:disabled { color: var(--text-dim); cursor: default; opacity: .6; }
+#noteEmpty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }

@@ -107,7 +107,7 @@ function flushAllWrites() {
 function maxDocUpdated() {
   let m = 0;
   const stmt = db.prepare('SELECT MAX(updated) AS u FROM docs WHERE kind = ?');
-  for (const kind of ['conv', 'card', 'template', 'source', 'doc', 'manuscript', 'worldgraph', 'projectPreset', 'snapshot']) {
+  for (const kind of ['conv', 'card', 'template', 'source', 'doc', 'manuscript', 'worldgraph', 'projectPreset', 'snapshot', 'note']) {
     const r = stmt.get(kind);
     if (r && r.u > m) m = r.u;
   }
@@ -228,6 +228,7 @@ let manuscript = loadDoc('manuscript', 'main', { title: '無題', chapters: [] }
 let sources = loadStore('source');
 let documents = loadStore('doc');
 let projectPresets = loadStore('projectPreset');
+let notes = loadStore('note');
 // シーン単位のリビジョン履歴（kind='scenehist', id='main' → {sceneId:[{ts,content}]}）
 let sceneHist = loadDoc('scenehist', 'main', {});
 // 実際に 0.0.0.0 で外部公開中か（startListener で更新）
@@ -661,6 +662,7 @@ function cardCRUD(route, kind, store) {
 }
 cardCRUD('cards', 'card', cards);
 cardCRUD('templates', 'template', templates);
+cardCRUD('notes', 'note', notes);
 
 // ---------- シーン単位リビジョン履歴 ----------
 // 原稿保存のたびに本文が変わったシーンの「旧版」を記録する（最大20版/シーン・30万字まで）
@@ -986,6 +988,7 @@ function rebuildMemoryStores(rows) {
   sources = toObj('source');
   documents = toObj('doc');
   projectPresets = toObj('projectPreset');
+  notes = toObj('note');
   const msRows = byKind['manuscript'] || [];
   const msMain = msRows.find(d => d.id === 'main');
   try { manuscript = msMain ? JSON.parse(msMain.data) : { title: '無題', chapters: [] }; }

@@ -29,6 +29,7 @@ import { initConsult } from './sceneconsult.js';
 import { initSceneHist } from './scenehist.js';
 import { initBackup } from './backup.js';
 import { initCardExtract } from './cardextract.js';
+import { initNotes } from './notes.js';
 
 // ---------- Init ----------
 async function init() {
@@ -153,6 +154,7 @@ function bindUI() {
   initSceneHist();
   initBackup();
   initCardExtract();
+  initNotes();
   initReadability();
   initScrollWatch();
   $('btnSettings').onclick = openSettings;
