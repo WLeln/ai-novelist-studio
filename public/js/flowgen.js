@@ -160,7 +160,7 @@ async function runFlow() {
   log(`全${items.length}項目を${chunks.length}チャンクに分割（チャンク上限 ${chunkSize.toLocaleString()}トークン）`);
 
   const sys = composeSystemPrompt({ noScene: true }) +
-    '\n\n※これは原稿への一括執筆タスクです。指定された各項目を、物語として自然につながる本文にしてください。各項目の分量は指定トークン数を目安にしてください。';
+    '\n\n※これは原稿への一括執筆タスクです。指定された各項目を、物語として自然につながる本文にしてください。各項目の分量は指定トークン数を目安にしてください。地の文とセリフ（「」）は必ず別の段落に分け、段落の区切りは空行（改行2つ）で出力してください。「」の直後で改行してください。';
 
   try {
     for (let ci = 0; ci < chunks.length; ci++) {
