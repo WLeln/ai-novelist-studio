@@ -13,9 +13,11 @@ app.setPath('userData', path.join(os.homedir(), 'AppData', 'Roaming', 'AI Noveli
 // 場合は下記を復活させること。
 // app.disableHardwareAcceleration();
 // app.commandLine.appendSwitch('disable-gpu');
-// WindowsのDirectComposition（カーソルレイヤー合成）を無効化。
-// 一部環境でカーソルが白く描画される不具合の対策。GPU描画自体は維持される。
-app.commandLine.appendSwitch('disable-direct-composition');
+// Windowsでカーソルが白く描画される不具合の対策。
+// disable-direct-composition では改善しなかったため GPUコンポジットを無効化する。
+// 以前FPS低下の原因とされたが、実際はモーダルの backdrop-filter blur が主因だった
+// 可能性が高い（blurはv1.3.27で除去済み）。重くなった場合はこの行を外すこと。
+app.commandLine.appendSwitch('disable-gpu-compositing');
 // app.commandLine.appendSwitch('disable-gpu-sandbox');
 // app.commandLine.appendSwitch('no-sandbox');
 
