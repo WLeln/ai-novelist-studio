@@ -1172,7 +1172,7 @@ async function nativeChat(res, body, headers, nativeBase, spec) {
         rep_pen: 1.3,
         model: body.model,
         // 返答後にモデルが架空の会話ターンを生成し続けるのを防ぐ
-        stoptokens: 'ユーザー:<<|>>[設定]<<|>>AI:'
+        stoptokens: 'ユーザー:<<|>>[設定]<<|>>【設定】<<|>>AI:'
       }),
       signal: AbortSignal.timeout(300000)
     });
@@ -1195,9 +1195,21 @@ async function nativeChat(res, body, headers, nativeBase, spec) {
   if (content == null) {
     return res.status(502).json({ error: 'APIの応答を解釈できません: ' + text.slice(0, 200) });
   }
-  // 保険：stoptokensをすり抜けた場合に備え、最初の「ユーザー:」「[設定]」行以降を切り捨てる
-  const trimmed = String(content).split(/\n(?=ユーザー:|\[設定\]|AI:)/)[0].trim();
-  content = trimmed || String(content).trim();
+  // プロンプト復唱（echo）検出：システム指示文が応答にそのまま含まれる場合は生成失敗として扱う
+  // （thinking系モデルがまれにプロンプトを復唱することがあり、そのまま本文に挿入されるのを防ぐ。
+  //   トリム前の生テキストで判定する：復唱は「はい、承知しました」等の前置き＋プロンプト本文の形を取るため）
+  const rawContent = String(content);
+  const sysJoined = (Array.isArray(body.messages) ? body.messages : [])
+    .filter(m => m && m.role === 'system')
+    .map(m => nativeMsgText(m.content))
+    .join('\n');
+  const echoNeedle = sysJoined.replace(/\s+/g, '').slice(0, 25);
+  if (echoNeedle.length >= 15 && rawContent.replace(/\s+/g, '').includes(echoNeedle)) {
+    return res.status(502).json({ error: 'APIがプロンプトを復唱してしまいました（モデルの不安定な応答）。もう一度お試しください。' });
+  }
+  // 保険：stoptokensをすり抜けた場合に備え、最初の「ユーザー:」「[設定]」「【設定】」「AI:」行以降を切り捨てる
+  const trimmed = rawContent.split(/\n(?=ユーザー:|\[設定\]|【設定】|AI:)/)[0].trim();
+  content = trimmed || rawContent.trim();
   if (!content) {
     return res.status(502).json({ error: 'APIが空の応答を返しました' });
   }
