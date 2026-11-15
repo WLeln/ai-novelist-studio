@@ -1148,6 +1148,15 @@ app.post('/api/chat', async (req, res) => {
     res.end();
   } else {
     const text = await upstream.text();
+    // 上流が200で {"error":"Invalid token"} 等を返すケースをエラー応答に正規化
+    // （このまま返すとchoicesが無く、フロントが「生成中→消える」 silent failure になる）
+    try {
+      const j = JSON.parse(text);
+      if (j && j.error && !j.choices) {
+        const msg = typeof j.error === 'string' ? j.error : (j.error.message || JSON.stringify(j.error));
+        return res.status(400).json({ error: msg });
+      }
+    } catch {}
     res.send(text);
   }
 });

@@ -291,6 +291,10 @@ export async function runCompletion() {
       scrollChat();
     } else {
       const json = await res.json();
+      if (json.error && !json.choices) {
+        const msg = typeof json.error === 'string' ? json.error : (json.error.message || JSON.stringify(json.error));
+        throw new Error(msg);
+      }
       const msg = json.choices?.[0]?.message || {};
       reasoning = (msg.reasoning || msg.reasoning_content || '');
       if (reasoning.includes('ENCRYPTED-TEXT')) reasoning = '';

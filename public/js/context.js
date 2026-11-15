@@ -83,6 +83,10 @@ export async function callApiOnce(messages) {
     throw new Error(res.status + ': ' + err);
   }
   const json = await res.json();
+  if (json.error && !json.choices) {
+    const msg = typeof json.error === 'string' ? json.error : (json.error.message || JSON.stringify(json.error));
+    throw new Error(msg);
+  }
   return { text: json.choices?.[0]?.message?.content || '', usage: json.usage };
 }
 
