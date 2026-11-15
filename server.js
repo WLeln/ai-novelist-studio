@@ -1047,4 +1047,4 @@ function restartListener() {
 }
 startListener();
 
-module.exports = { bootId: BOOT_ID };
+module.exports = { bootId: BOOT_ID, retryListen: restartListener };

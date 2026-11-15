@@ -75,31 +75,62 @@ function waitForServer(retries = 50) {
   });
 }
 
+// ポートを占有しているプロセスを特定して強制終了（Windows: netstat+taskkill / その他: lsof+kill）
+function killPortOwner(port = PORT) {
+  const { execSync } = require('child_process');
+  const pids = new Set();
+  try {
+    if (process.platform === 'win32') {
+      const out = execSync('netstat -ano', { encoding: 'utf8' });
+      for (const line of out.split(/\r?\n/)) {
+        if (!line.includes('LISTENING')) continue;
+        const cols = line.trim().split(/\s+/);
+        // ローカルアドレス列が :PORT で終わるものだけ（外国アドレス誤爆防止）
+        if (cols.length >= 5 && cols[1].endsWith(':' + port) && /^\d+$/.test(cols[cols.length - 1])) {
+          pids.add(cols[cols.length - 1]);
+        }
+      }
+      for (const pid of pids) {
+        if (pid === String(process.pid)) continue;
+        try { execSync(`taskkill /PID ${pid} /F`, { stdio: 'ignore' }); } catch {}
+      }
+    } else {
+      const out = execSync(`lsof -ti tcp:${port} -sTCP:LISTEN`, { encoding: 'utf8' });
+      for (const pid of out.split(/\s+/).filter(Boolean)) {
+        if (pid === String(process.pid)) continue;
+        try { execSync(`kill -9 ${pid}`, { stdio: 'ignore' }); } catch {}
+      }
+    }
+  } catch { /* 取得失敗時は何もしない */ }
+  return pids.size;
+}
+
+function fetchVersion() {
+  return new Promise((resolve) => {
+    require('http').get(`http://localhost:${PORT}/api/version`, (res) => {
+      let d = '';
+      res.on('data', c => d += c);
+      res.on('end', () => { try { resolve(JSON.parse(d)); } catch { resolve(null); } });
+    }).on('error', () => resolve(null));
+  });
+}
+const delay = (ms) => new Promise(r => setTimeout(r, ms));
+
 async function createWindow() {
   await waitForServer();
 
-  // ポート3737を別のAI Novelist Studio（古いサーバー等）が占有している場合、
-  // そちらの古いフロントエンド/インメモリデータを読みに行ってしまうため起動を中止する
-  try {
-    const v = await new Promise((resolve, reject) => {
-      require('http').get(`http://localhost:${PORT}/api/version`, (res) => {
-        let d = '';
-        res.on('data', c => d += c);
-        res.on('end', () => { try { resolve(JSON.parse(d)); } catch { reject(new Error('bad json')); } });
-      }).on('error', reject);
-    });
-    if (!appServer || v.boot !== appServer.bootId) {
-      dialog.showErrorBox(
-        'AI Novelist Studio',
-        'ポート 3737 は別の「AI Novelist Studio」または別アプリに使われています。\n\n' +
-        '古いデータで上書きされるのを防ぐため起動を中止しました。\n' +
-        '既に起動しているインスタンスを閉じてから、もう一度お試しください。'
-      );
-      app.quit();
-      return;
-    }
-  } catch {
-    // /api/version に応答しない = 自分のサーバーが立っていない。接続エラーページを出すより中止する
+  // ポート3737の占有者を確認。自分のサーバーならそのまま、
+  // 別のAI Novelist StudioインスタンスならデータはSQLiteに保存済みのため
+  // プロセスを終了して自分のサーバーに乗っ取る。他アプリなら中止する。
+  let v = await fetchVersion();
+  if (v && v.name === 'AI Novelist Studio' && appServer && v.boot !== appServer.bootId) {
+    killPortOwner();
+    await delay(800);
+    if (appServer.retryListen) appServer.retryListen();
+    await waitForServer(30);
+    v = await fetchVersion();
+  }
+  if (!v || v.name !== 'AI Novelist Studio' || !appServer || v.boot !== appServer.bootId) {
     dialog.showErrorBox(
       'AI Novelist Studio',
       `http://localhost:${PORT} のサーバーを起動できませんでした。\n` +
