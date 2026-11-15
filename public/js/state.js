@@ -118,8 +118,9 @@ export function overusedWords(text, { window = 800, minLocal = 3, minTotal = 5 }
     .sort((a, b) => b.local - a.local || b.count - a.count)
     .slice(0, 8);
 }
-// プロンプト注入ブロック（検出なしなら空文字）
+// プロンプト注入ブロック（検出なし・設定でOFFなら空文字）
 export function overusedWordBlock(texts) {
+  if (config?.params?.repGuard === false) return '';
   const all = (Array.isArray(texts) ? texts : [texts]).filter(Boolean).join('\n');
   const words = overusedWords(all);
   if (!words.length) return '';

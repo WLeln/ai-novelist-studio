@@ -80,6 +80,7 @@ export function openSettings() {
   $('sAutoCompress').checked = config.params.autoCompress !== false;
   $('sHybridMem').checked = config.params.hybridMemory !== false;
   $('sSuggestNext').checked = config.params.suggestNext !== false;
+  $('sRepGuard').checked = config.params.repGuard !== false;
   $('sRealTokens').checked = config.params.realTokens === true;
   $('sNoMarkdown').checked = config.params.noMarkdown !== false;
   $('sNoEmoji').checked = config.params.noEmoji !== false;
@@ -108,6 +109,7 @@ export async function saveSettings() {
       autoCompress: $('sAutoCompress').checked,
       hybridMemory: $('sHybridMem').checked,
       suggestNext: $('sSuggestNext').checked,
+      repGuard: $('sRepGuard').checked,
       realTokens: $('sRealTokens').checked,
       noMarkdown: $('sNoMarkdown').checked,
       noEmoji: $('sNoEmoji').checked,
