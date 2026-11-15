@@ -267,7 +267,8 @@ export function showWritingLog() {
 // ---------- 文体分析（パラメータ抽出） ----------
 const STYLE_RUBRIC = `あなたは文体分析の専門家です。以下の小説本文サンプルを読み、文体を定量的に分析してください。
 
-【出力形式（この形式のみ。前置き・説明・Markdown装飾は不要）】
+【出力形式（この形式のみ。前置き・説明・Markdown装飾・例文は不要。各項目は1行で簡潔に）】
+※機械計測値が与えられた場合、定量項目（漢字率・読点頻度・文長など）はそれを優先採用し、再推定・丸め直しをしないこと。
 
 【パラメータ】
 1. 平均文長: 全角文字数の平均と傾向
@@ -296,7 +297,7 @@ const STYLE_RUBRIC = `あなたは文体分析の専門家です。以下の小�
 24. 避けるべき要素: この文体に合わない表現
 
 【文体指示文】
-（上記分析を踏まえ、この文体をAIが再現できるよう、具体的な指示文を日本語で6〜10文。文長・リズム・語彙・改行・セリフの扱いなどを明確に指示すること）`;
+（上記分析を踏まえ、この文体をAIが再現できるよう、具体的な指示文を日本語で5〜8文。文長・リズム・語彙・改行・セリフの扱いなどを明確に指示すること。無駄な前置きは書かない）`;
 
 let styleDirective = '';
 let styleFullText = '';
@@ -351,6 +352,18 @@ export function fillStyleSample(from) {
   $('styleSample').value = text.slice(0, 5000);
 }
 
+// 長文は冒頭だけだと序盤の文体に偏るため、頭・中・末尾をまんべんなく採取する
+function styleSampleSlice(text, max = 6000) {
+  if (text.length <= max) return text;
+  const part = Math.floor(max / 3);
+  const mid = Math.floor(text.length / 2);
+  return text.slice(0, part) +
+    '\n\n……（中略）……\n\n' +
+    text.slice(Math.max(0, mid - Math.floor(part / 2)), mid + Math.floor(part / 2)) +
+    '\n\n……（中略）……\n\n' +
+    text.slice(-part);
+}
+
 export async function runStyleAnalysis() {
   const sample = ($('styleSample').value || '').trim();
   if (!sample) { appAlert('サンプル本文を入力してください'); return; }
@@ -373,7 +386,7 @@ export async function runStyleAnalysis() {
   try {
     const { text } = await callApiOnce([
       { role: 'system', content: STYLE_RUBRIC },
-      { role: 'user', content: sample.slice(0, 6000) + metricsNote }
+      { role: 'user', content: styleSampleSlice(sample) + metricsNote }
     ]);
     styleFullText = (text || '').trim();
     const m = styleFullText.match(/【文体指示文】\s*([\s\S]*)$/);
