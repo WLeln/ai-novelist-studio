@@ -2,7 +2,7 @@
 import { $, chatEl, inputEl, convTitleEl, searchBox, searchResultsEl } from './dom.js';
 import { api, esc, appPrompt } from './util.js';
 import { config, fun, abortCtrl, allTemplates, current, setConfig, setAllCards, setAllTemplates } from './state.js';
-import { loadManuscript, toggleManuscriptPane, openMsTab, exportManuscript, exportManuscriptHtml, msAddChapter, msAddScene, msDelete, msDuplicateScene, msDuplicateChapter, msScene, scheduleMsSave, msSetGoal, msForeshadowCheck, updateMsStats, openWritingChart, openChapterChart, msAiWrite, msWriteChapter, toggleMsBoard, toggleMsVertical, restoreMsVertical, msShowAiParts, initReadability, msSelectionToCard, msPinSelection, msInsertPrevTail, msGotoScene, msFormatScene, initMsResize } from './manuscript.js';
+import { loadManuscript, toggleManuscriptPane, openMsTab, msBackToSidePane, exportManuscript, exportManuscriptHtml, msAddChapter, msAddScene, msDelete, msDuplicateScene, msDuplicateChapter, msScene, scheduleMsSave, msSetGoal, msForeshadowCheck, updateMsStats, openWritingChart, openChapterChart, msAiWrite, msWriteChapter, toggleMsBoard, toggleMsVertical, restoreMsVertical, msShowAiParts, initReadability, msSelectionToCard, msPinSelection, msInsertPrevTail, msGotoScene, msFormatScene, initMsResize } from './manuscript.js';
 import { refreshSources, openSourcesModal, fillSourceProjectSelect, resetSourceForm, saveSource, deleteSource, importSourceFile, renderSourceList } from './sources.js';
 import { refreshDocuments, initDocEditor } from './documents.js';
 import { refreshConvList, restoreTabs, newConversation, renameConversation, saveProfile, deleteSelectedConvs, clearConvSelection, renderConvList, onSearchInput, queueDraftSave, refreshSceneSelect, closeTab } from './conversations.js';
@@ -62,9 +62,13 @@ function bindUI() {
     }
   });
   $('btnSidebarToggle').onclick = toggleSidebar;
-  // 原稿：クイックボタンは専用タブ（全開）で開く。サイドペインはAI追記時のmsRevealPane等で600px表示
-  $('qbManuscript').onclick = openMsTab;
+  // 原稿：クイックボタンはサイドペイン（600px）のトグル。全開はペインの⤢ボタンから
+  $('qbManuscript').onclick = toggleManuscriptPane;
   $('qbAutoMs').onclick = toggleAutoMs;
+  $('btnMsFull') && ($('btnMsFull').onclick = () => {
+    if ($('manuscriptPane').classList.contains('ms-full')) msBackToSidePane();
+    else openMsTab();
+  });
   $('btnMsClose').onclick = () => {
     const pane = $('manuscriptPane');
     if (pane.classList.contains('ms-full')) {

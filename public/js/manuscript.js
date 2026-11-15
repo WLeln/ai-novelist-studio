@@ -420,8 +420,26 @@ export function toggleManuscriptPane() {
 export function openMsTab() {
   activateTab('ms', 'main');
   showMsView();
+  const b = $('btnMsFull');
+  if (b) b.title = 'サイドペイン表示（600px）';
 }
 registerTabOpener('ms', openMsTab);
+
+// 全開タブからサイドペイン（600px）表示に戻る
+export function msBackToSidePane() {
+  if (current) activateTab('conv', current.id);
+  else {
+    const t = convTabs.find(t => t.type === 'conv');
+    if (t) activateTab('conv', t.id); else showEmptyChat();
+  }
+  showChatView(); // ms-full解除＋ペインを隠す
+  const p = $('manuscriptPane');
+  p?.classList.remove('hidden');
+  p?.classList.remove('ms-full');
+  $('qbManuscript')?.classList.add('active');
+  const b = $('btnMsFull');
+  if (b) b.title = '全開表示（専用タブ）';
+}
 
 // ---------- 縦書きプレビュー ----------
 export function toggleMsVertical() {
