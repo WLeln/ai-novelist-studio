@@ -152,6 +152,7 @@
               <button id="btnExport" class="btn-ghost btn-sm">保存</button>
             </div>
             <button class="menu-item" id="miTimeMachine"><svg class="icon"><use href="#i-refresh"/></svg> タイムマシン</button>
+            <button class="menu-item" id="miBackup"><svg class="icon"><use href="#i-refresh"/></svg> バックアップ / 復元</button>
             <button class="menu-item" id="miConsistency"><svg class="icon"><use href="#i-search"/></svg> 一貫性チェック</button>
             <button class="menu-item" id="miSearchReplace"><svg class="icon"><use href="#i-search"/></svg> 横断検索・置換</button>
             <button class="menu-item" id="miAskWork"><svg class="icon"><use href="#i-sparkle"/></svg> 作品に聞く（AI横断Q&A）</button>
@@ -401,6 +402,8 @@
           <button id="btnMsForeshadow" class="btn-ghost btn-sm">伏線チェック</button>
           <button id="btnMsWrite" class="btn-ghost btn-sm">AI執筆</button>
           <button id="btnMsAiParts" class="btn-ghost btn-sm">AI部分</button>
+          <button id="btnMsConsult" class="btn-ghost btn-sm" title="このシーンについてAIに相談（Q&Aはシーンに保存されます）">相談</button>
+          <button id="btnMsHist" class="btn-ghost btn-sm" title="このシーンの編集履歴（自動記録・過去版に復元可）">履歴</button>
           <button id="btnMsChart" class="btn-ghost btn-sm">グラフ</button>
           <button id="btnMsChChart" class="btn-ghost btn-sm" title="章ごとの文字数をグラフ表示">章別</button>
           <button id="btnMsBoard" class="btn-ghost btn-sm">ボード</button>
@@ -922,6 +925,60 @@
       <button class="modal-close" id="btnCloseHistory"><svg class="icon"><use href="#i-close"/></svg></button>
     </div>
     <div class="modal-body" id="historyList"></div>
+  </div>
+</div>
+
+<!-- シーン相談（シーン別AI Q&A）モーダル -->
+<div id="consultModal" class="modal hidden">
+  <div class="modal-content" style="width:min(680px,94vw)">
+    <div class="modal-header">
+      <h2 id="consultTitle"><svg class="icon"><use href="#i-sparkle"/></svg> シーン相談</h2>
+      <button class="modal-close" id="btnCloseConsult"><svg class="icon"><use href="#i-close"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <p class="hint" style="margin:0 0 8px">このシーンの本文・前後シーン・関連カードをAIが読んだ上で回答します。Q&Aはシーンに保存され、あとから見返せます。</p>
+      <div id="consultLog" style="max-height:38vh;overflow-y:auto;margin-bottom:8px"></div>
+      <div class="params-row">
+        <input type="text" id="consultInput" placeholder="質問（例：このシーンの会話に矛盾ある？ / 主人公の心情を整理して）" style="flex:1">
+        <button id="consultSend" class="btn-primary btn-sm">質問</button>
+      </div>
+      <div class="hint" id="consultStatus"></div>
+    </div>
+  </div>
+</div>
+
+<!-- シーン履歴（リビジョン）モーダル -->
+<div id="histModal" class="modal hidden">
+  <div class="modal-content" style="width:min(860px,95vw)">
+    <div class="modal-header">
+      <h2 id="histTitle"><svg class="icon"><use href="#i-refresh"/></svg> シーン履歴</h2>
+      <button class="modal-close" id="btnCloseHist"><svg class="icon"><use href="#i-close"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="params-row" style="align-items:flex-start;gap:12px">
+        <div id="histList" style="width:280px;flex-shrink:0;max-height:56vh;overflow-y:auto"></div>
+        <div id="histDetail" style="flex:1;min-width:0;max-height:56vh;overflow-y:auto"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- バックアップ / 復元モーダル -->
+<div id="backupModal" class="modal hidden">
+  <div class="modal-content" style="width:min(560px,92vw)">
+    <div class="modal-header">
+      <h2><svg class="icon"><use href="#i-refresh"/></svg> バックアップ / 復元</h2>
+      <button class="modal-close" id="btnCloseBackup"><svg class="icon"><use href="#i-close"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <p class="hint" style="margin:0 0 12px">作品全体（原稿・カード・ドキュメント・ソース・会話・設定・タイムマシン履歴以外）をJSONファイルに保存・復元します。タイムマシンのスナップショット本体はバックアップに含まれません。</p>
+      <div class="params-row">
+        <button id="btnBackupExport" class="btn-primary btn-sm">エクスポート</button>
+        <button id="btnBackupImport" class="btn-ghost btn-sm">インポート…</button>
+        <input type="file" id="backupFile" accept=".json,application/json" class="hidden">
+        <span class="hint" id="backupStatus"></span>
+      </div>
+    </div>
   </div>
 </div>
 

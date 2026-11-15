@@ -25,4 +25,7 @@ Express + SQLite（node:sqlite）のバックエンド（server.js）と、バ�
 - 物語グラフ（関連グラフ）: `public/js/worldgraph.js`、タブtype `graph`（singleton id='main'、タブキー `g:`）。ノード=カード/ドキュメント/原稿シーン/ソース/会話、エッジ=カード名言及の自動スキャン＋会話紐付け＋手動関連。配置・手動エッジは `/api/worldgraph`（kind='worldgraph'）に保存
 - 一貫性チェック（小説lint）: `public/js/consistency.js`、ツールメニュー「一貫性チェック」。カード数値(歳/cm/kg/km)と本文の矛盾・未登場・重複を検出
 - 横断検索・置換: `public/js/searchreplace.js`、ツールメニュー「横断検索・置換」。原稿/ドキュメント/ソース対象、`msReplaceScenes()`で原稿一括置換
-- タイムマシン: `public/js/timemachine.js` + server.js `/api/timemachine`。kind='tmsnap'/'tmsnapdata'に全docsダンプ(最大150件)。writeDoc/deleteDocフックで30分毎自動記録（変更時のみ・config除外）。復元はDB+インメモリストア両方を再構築
+- タイムマシン: `public/js/timemachine.js` + server.js `/api/timemachine`。kind='tmsnap'/'tmsnapdata'に全docsダンプ(最大150件)。writeDoc/deleteDocフックで30分毎自動記録（変更時のみ・config除外）。復元はDB+インメモリストア両方を再構築（`rebuildMemoryStores`）
+- シーン相談: `public/js/sceneconsult.js`、原稿ツールバー「相談」。シーンの`aiNotes`（Q&A・最大20件）に保存。PUT /api/manuscriptでサニタイズ
+- シーン履歴: `public/js/scenehist.js`、原稿ツールバー「履歴」。server.jsが原稿PUT時に本文変更シーンの旧版をkind='scenehist'に記録（20版/シーン・30万字）。`/api/scenehist/:sceneId[/:idx]`
+- バックアップ: `public/js/backup.js`、ツールメニュー「バックアップ / 復元」。`/api/backup`で全docsをJSONダンプ（tmsnap系除外・config含む）、`/api/backup/restore`で全置換＋メモリ再構築→リロード

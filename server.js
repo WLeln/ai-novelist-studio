@@ -228,6 +228,8 @@ let manuscript = loadDoc('manuscript', 'main', { title: '無題', chapters: [] }
 let sources = loadStore('source');
 let documents = loadStore('doc');
 let projectPresets = loadStore('projectPreset');
+// シーン単位のリビジョン履歴（kind='scenehist', id='main' → {sceneId:[{ts,content}]}）
+let sceneHist = loadDoc('scenehist', 'main', {});
 // 実際に 0.0.0.0 で外部公開中か（startListener で更新）
 let lanPublic = false;
 
@@ -656,6 +658,45 @@ function cardCRUD(route, kind, store) {
 cardCRUD('cards', 'card', cards);
 cardCRUD('templates', 'template', templates);
 
+// ---------- シーン単位リビジョン履歴 ----------
+// 原稿保存のたびに本文が変わったシーンの「旧版」を記録する（最大20版/シーン・30万字まで）
+const SCENE_HIST_MAX_REVS = 20;
+const SCENE_HIST_MAX_CHARS = 300000;
+const SCENE_HIST_MAX_SCENES = 500;
+function recordSceneRevisions(newChapters) {
+  const old = {};
+  for (const ch of (manuscript?.chapters || [])) {
+    for (const sc of ch.scenes || []) old[sc.id] = sc.content || '';
+  }
+  let changed = false;
+  for (const ch of newChapters || []) {
+    for (const sc of ch.scenes || []) {
+      const oc = old[sc.id];
+      if (oc === undefined) continue; // 新規シーンは履歴対象外
+      const nc = sc.content || '';
+      if (oc === nc) continue;
+      const revs = sceneHist[sc.id] || (sceneHist[sc.id] = []);
+      revs.push({ ts: Date.now(), content: oc.slice(0, SCENE_HIST_MAX_CHARS) });
+      if (revs.length > SCENE_HIST_MAX_REVS) revs.splice(0, revs.length - SCENE_HIST_MAX_REVS);
+      changed = true;
+    }
+  }
+  // 上限超過時は最終更新が古いシーンから削除
+  const keys = Object.keys(sceneHist);
+  if (keys.length > SCENE_HIST_MAX_SCENES) {
+    keys.sort((a, b) => {
+      const ra = sceneHist[a], rb = sceneHist[b];
+      return (ra[ra.length - 1]?.ts || 0) - (rb[rb.length - 1]?.ts || 0);
+    });
+    for (const k of keys.slice(0, keys.length - SCENE_HIST_MAX_SCENES)) delete sceneHist[k];
+    changed = true;
+  }
+  if (changed) {
+    sceneHist = sceneHist || {};
+    writeDoc('scenehist', 'main', sceneHist);
+  }
+}
+
 // ---------- Manuscript（原稿） ----------
 app.get('/api/manuscript', (req, res) => res.json(manuscript));
 app.put('/api/manuscript', (req, res) => {
@@ -681,11 +722,21 @@ app.put('/api/manuscript', (req, res) => {
             ? sc.aiSnippets.slice(-50).filter(s => s && typeof s === 'object' && typeof s.text === 'string')
                 .map(s => ({ ts: Number(s.ts) || Date.now(), text: String(s.text).slice(0, 100000) }))
             : undefined;
+          const aiNotes = Array.isArray(sc.aiNotes)
+            ? sc.aiNotes.slice(-20).filter(n => n && typeof n === 'object')
+                .map(n => ({
+                  ts: Number(n.ts) || Date.now(),
+                  q: String(n.q || '').slice(0, 4000),
+                  a: String(n.a || '').slice(0, 8000)
+                }))
+                .filter(n => n.q || n.a)
+            : undefined;
           return {
             id: sid,
             title: String(sc.title || '無題').slice(0, 200),
             content: trimmed,
-            ...(aiSnippets && aiSnippets.length ? { aiSnippets } : {})
+            ...(aiSnippets && aiSnippets.length ? { aiSnippets } : {}),
+            ...(aiNotes && aiNotes.length ? { aiNotes } : {})
           };
         });
       return { id: cid, title: String(ch.title || '無題').slice(0, 200), scenes };
@@ -697,6 +748,7 @@ app.put('/api/manuscript', (req, res) => {
     const n = parseInt(v);
     if (/^\d{4}-\d{2}-\d{2}$/.test(d) && Number.isFinite(n) && n >= 0) dayMap[d] = n;
   }
+  recordSceneRevisions(chapters);
   manuscript = {
     title: String(b.title || '無題').slice(0, 200),
     chapters,
@@ -711,6 +763,57 @@ app.put('/api/manuscript', (req, res) => {
   };
   writeDoc('manuscript', 'main', manuscript);
   res.json({ ok: true });
+});
+
+// ---------- シーン履歴（リビジョン） ----------
+app.get('/api/scenehist/:sceneId', (req, res) => {
+  const id = String(req.params.sceneId);
+  const revs = Array.isArray(sceneHist[id]) ? sceneHist[id] : [];
+  res.json({
+    revs: revs.map((r, i) => ({
+      i, ts: r.ts, len: (r.content || '').length,
+      preview: String(r.content || '').replace(/\s+/g, ' ').slice(0, 120)
+    }))
+  });
+});
+app.get('/api/scenehist/:sceneId/:idx', (req, res) => {
+  const id = String(req.params.sceneId);
+  const revs = Array.isArray(sceneHist[id]) ? sceneHist[id] : [];
+  const r = revs[parseInt(req.params.idx, 10)];
+  if (!r) return res.status(404).json({ error: 'not found' });
+  res.json({ ts: r.ts, content: r.content || '' });
+});
+app.delete('/api/scenehist/:sceneId', (req, res) => {
+  const id = String(req.params.sceneId);
+  if (sceneHist[id]) {
+    delete sceneHist[id];
+    writeDoc('scenehist', 'main', sceneHist);
+  }
+  res.json({ ok: true });
+});
+
+// ---------- ワークスペースバックアップ ----------
+// 全docsをJSONダンプ（タイムマシンスのスナップショット本体は除外＝容量削減。configは含む）
+app.get('/api/backup', (req, res) => {
+  flushAllWrites();
+  const rows = db.prepare(
+    "SELECT kind, id, data, updated FROM docs WHERE kind NOT IN ('tmsnap','tmsnapdata')"
+  ).all();
+  res.json({ app: 'ai-novelist-studio', ts: Date.now(), docs: rows });
+});
+app.post('/api/backup/restore', (req, res) => {
+  const docs = req.body && req.body.docs;
+  if (!Array.isArray(docs) || !docs.length) return res.status(400).json({ error: 'バックアップファイルが不正です' });
+  flushAllWrites();
+  db.exec('DELETE FROM docs');
+  const ins = db.prepare('INSERT INTO docs (kind, id, data, updated) VALUES (?, ?, ?, ?)');
+  let n = 0;
+  for (const d of docs) {
+    if (!d || typeof d.kind !== 'string' || typeof d.id !== 'string' || typeof d.data !== 'string') continue;
+    try { ins.run(d.kind, d.id, d.data, Number(d.updated) || Date.now()); n++; } catch {}
+  }
+  rebuildMemoryStores(docs);
+  res.json({ ok: true, restored: n });
 });
 
 // ---------- Sources（参照資料・NotebookLM的なQ&A用） ----------
@@ -857,23 +960,11 @@ app.delete('/api/timemachine/:id', (req, res) => {
   stmtDelete.run('tmsnapdata', id);
   res.json({ ok: true });
 });
-app.post('/api/timemachine/:id/restore', (req, res) => {
-  const id = String(req.params.id);
-  const row = stmtOne.get('tmsnapdata', id);
-  if (!row) return res.status(404).json({ error: 'not found' });
-  let payload;
-  try { payload = JSON.parse(row.data); }
-  catch { return res.status(500).json({ error: 'スナップショットが破損しています' }); }
-  flushAllWrites();
-  // DBをスナップショット時点に戻す（tmsnap系・configは保持）
-  db.exec("DELETE FROM docs WHERE kind NOT IN ('tmsnap','tmsnapdata','config')");
-  const ins = db.prepare('INSERT INTO docs (kind, id, data, updated) VALUES (?, ?, ?, ?)');
-  for (const d of payload.docs || []) {
-    try { ins.run(d.kind, d.id, d.data, d.updated || Date.now()); } catch {}
-  }
-  // サーバーのインメモリストアも再構築（これをしないと次の保存で旧データに戻る）
+// docs行（{kind,id,data,updated}）からインメモリストアを再構築。
+// config行が含まれる場合のみ設定も復元（タイムマシン復元ではconfigはpayloadに無いので現状維持）
+function rebuildMemoryStores(rows) {
   const byKind = {};
-  for (const d of payload.docs || []) {
+  for (const d of rows || []) {
     (byKind[d.kind] = byKind[d.kind] || []).push(d);
   }
   const toObj = (kind) => {
@@ -897,6 +988,41 @@ app.post('/api/timemachine/:id/restore', (req, res) => {
   const wgMain = wgRows.find(d => d.id === 'main');
   try { worldGraph = wgMain ? JSON.parse(wgMain.data) : { nodes: {}, edges: [] }; }
   catch { worldGraph = { nodes: {}, edges: [] }; }
+  const shRows = byKind['scenehist'] || [];
+  const shMain = shRows.find(d => d.id === 'main');
+  try { sceneHist = shMain ? JSON.parse(shMain.data) : {}; }
+  catch { sceneHist = {}; }
+  const cfgRows = byKind['config'] || [];
+  const cfgMain = cfgRows.find(d => d.id === 'main');
+  if (cfgMain) {
+    try {
+      const sc = JSON.parse(cfgMain.data);
+      config = {
+        ...defaultConfig, ...sc,
+        params: { ...defaultConfig.params, ...(sc.params || {}) }
+      };
+      config.baseUrl = DEFAULT_BASE_URL;
+      config.noAuth = false;
+    } catch {}
+  }
+}
+
+app.post('/api/timemachine/:id/restore', (req, res) => {
+  const id = String(req.params.id);
+  const row = stmtOne.get('tmsnapdata', id);
+  if (!row) return res.status(404).json({ error: 'not found' });
+  let payload;
+  try { payload = JSON.parse(row.data); }
+  catch { return res.status(500).json({ error: 'スナップショットが破損しています' }); }
+  flushAllWrites();
+  // DBをスナップショット時点に戻す（tmsnap系・configは保持）
+  db.exec("DELETE FROM docs WHERE kind NOT IN ('tmsnap','tmsnapdata','config')");
+  const ins = db.prepare('INSERT INTO docs (kind, id, data, updated) VALUES (?, ?, ?, ?)');
+  for (const d of payload.docs || []) {
+    try { ins.run(d.kind, d.id, d.data, d.updated || Date.now()); } catch {}
+  }
+  // サーバーのインメモリストアも再構築（これをしないと次の保存で旧データに戻る）
+  rebuildMemoryStores(payload.docs || []);
   lastSnapMaxUpdated = Math.max(lastSnapMaxUpdated, payload.ts || 0);
   res.json({ ok: true, restored: id });
 });

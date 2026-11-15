@@ -263,6 +263,13 @@ function renderMsTree() {
         badge.title = `AI生成テキスト ${sc.aiSnippets.length}件`;
         scEl.appendChild(badge);
       }
+      if (sc.aiNotes?.length) {
+        const q = document.createElement('span');
+        q.className = 'ms-ai-badge ms-q-badge';
+        q.textContent = 'Q' + sc.aiNotes.length;
+        q.title = `シーン相談 ${sc.aiNotes.length}件`;
+        scEl.appendChild(q);
+      }
       scEl.appendChild(document.createTextNode(sc.title));
       scEl.appendChild(cnt);
       const mkMv = (dir, label) => {
@@ -470,6 +477,17 @@ export function msRefresh() {
   renderMsTree();
   updateMsEditor();
   scheduleMsSave();
+}
+// シーン本文を外部から差し替える（履歴復元など）。選択中シーンのみ対象
+export function msApplyContent(content) {
+  const sc = msScene();
+  if (!sc) return false;
+  sc.content = String(content || '');
+  renderMsTree();
+  updateMsEditor();
+  scheduleMsSave();
+  updateMsStats();
+  return true;
 }
 
 // ---------- シーンをAIに書かせる ----------

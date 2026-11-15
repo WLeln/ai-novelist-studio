@@ -25,6 +25,9 @@ import { initTimeMachine } from './timemachine.js';
 import { initCowrite } from './cowrite.js';
 import { initAskWork } from './askwork.js';
 import { initGhostWrite } from './ghostwrite.js';
+import { initConsult } from './sceneconsult.js';
+import { initSceneHist } from './scenehist.js';
+import { initBackup } from './backup.js';
 
 // ---------- Init ----------
 async function init() {
@@ -138,6 +141,9 @@ function bindUI() {
   initCowrite();
   initAskWork();
   initGhostWrite();
+  initConsult();
+  initSceneHist();
+  initBackup();
   initReadability();
   initScrollWatch();
   $('btnSettings').onclick = openSettings;
