@@ -106,6 +106,8 @@ export async function openDocument(id) {
     loading = false;
   }
   updateDocStatus('');
+  clearTimeout(rdTimer);
+  $('docReadability')?.classList.add('hidden');
   updateToolbarState();
   renderDocList();
 }
@@ -152,6 +154,7 @@ function ensureEditor() {
       if (loading) return;
       scheduleDocSave();
       updateDocStatus('編集中…');
+      scheduleReadability();
     }
   });
   editor.on('transaction', updateToolbarState);
@@ -162,6 +165,29 @@ function updateDocStatus(msg) {
   if (!el) return;
   if (msg) { el.textContent = msg; return; }
   el.textContent = currentDoc ? `更新 ${fmtDate(currentDoc.updated)}` : '';
+}
+
+// ---------- リアルタイム読みやすさゲージ ----------
+let rdTimer = null, rdSeq = 0;
+function scheduleReadability() {
+  clearTimeout(rdTimer);
+  rdTimer = setTimeout(runReadability, 1200);
+}
+async function runReadability() {
+  const g = $('docReadability');
+  if (!g || !editor) return;
+  const text = editor.getText() || '';
+  if (text.trim().length < 30) { g.classList.add('hidden'); return; }
+  const seq = ++rdSeq;
+  try {
+    const r = await api('/api/readability', { method: 'POST', body: JSON.stringify({ text: text.slice(0, 20000) }) });
+    if (seq !== rdSeq || !editor) return;
+    const s = r.score;
+    const label = s >= 5 ? '読みやすい' : s >= 4 ? 'やや読みやすい' : s >= 3 ? '普通' : '難しめ';
+    g.textContent = `読みやすさ ${s.toFixed(1)}（${label}）`;
+    g.className = 'ms-readability ' + (s >= 4 ? 'good' : s >= 3 ? 'mid' : 'low');
+    g.title = (r.approx ? '近似計算' : 'jReadability実測') + ' / 平均文長 ' + (r.metrics?.avgSentenceLen ?? '—') + '字';
+  } catch { /* 失敗時は非表示のまま */ }
 }
 
 function scheduleDocSave() {

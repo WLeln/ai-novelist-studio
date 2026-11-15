@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, globalShortcut, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, globalShortcut, dialog, nativeTheme } = require('electron');
 const path = require('path');
 const os = require('os');
 
@@ -13,9 +13,9 @@ app.setPath('userData', path.join(os.homedir(), 'AppData', 'Roaming', 'AI Noveli
 // 場合は下記を復活させること。
 // app.disableHardwareAcceleration();
 // app.commandLine.appendSwitch('disable-gpu');
-// GPUコンポジットのみ無効化：一部環境でカーソルレイヤーが白く描画される不具合の対策。
-// フルGPU無効化ほど重くならない。
-app.commandLine.appendSwitch('disable-gpu-compositing');
+// 白カーソル不具合はOSのダークモード連動が原因だったため、ネイティブテーマを
+// ライトに固定してChromiumのダークモードカーソル描画を防ぐ（ページ側テーマはCSSで別管理）
+nativeTheme.themeSource = 'light';
 // app.commandLine.appendSwitch('disable-gpu-sandbox');
 // app.commandLine.appendSwitch('no-sandbox');
 

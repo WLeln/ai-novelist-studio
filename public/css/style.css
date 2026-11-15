@@ -656,7 +656,6 @@ body.writing-mode .msg .content { font-size: 16.5px; line-height: 2.1; }
 .modal {
   position: fixed; inset: 0; z-index: 100;
   background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(4px);
   display: flex; align-items: center; justify-content: center;
   animation: fadeIn 0.18s ease;
 }
@@ -976,6 +975,27 @@ body.cat-ears #convTitle::after { left: 26px; transform: rotate(14deg); }
   background: var(--bg-input); color: var(--text);
 }
 .ms-ai-btns { display: flex; gap: 6px; justify-content: flex-end; }
+
+/* ---------- ピン留め参照 ---------- */
+.ms-pins {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  padding: 6px 2px 0;
+}
+.ms-pin {
+  display: inline-flex; align-items: center; gap: 4px;
+  max-width: 100%; padding: 3px 6px 3px 10px;
+  border: 1px solid var(--border-strong); border-radius: 999px;
+  background: var(--bg-input); font-size: 12px; cursor: pointer;
+}
+.ms-pin:hover { border-color: var(--accent); }
+.ms-pin-text {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 320px;
+}
+.ms-pin-x {
+  border: none; background: none; color: var(--text-dim);
+  font-size: 13px; line-height: 1; padding: 2px 4px; cursor: pointer; border-radius: 50%;
+}
+.ms-pin-x:hover { color: var(--danger); background: var(--accent-soft); }
 
 /* ---------- Tabゴースト補完 ---------- */
 .ms-editor-body { position: relative; flex: 1; min-height: 0; display: flex; }

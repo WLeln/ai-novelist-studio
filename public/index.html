@@ -338,6 +338,7 @@
           <select id="docProject"><option value="">（プロジェクトなし）</option></select>
           <span id="docSuggest" class="hint doc-suggest"></span>
           <span id="docStatus" class="hint"></span>
+          <span id="docReadability" class="ms-readability hidden" title=""></span>
           <span class="doc-meta-actions">
             <button id="btnDocContinue" class="btn-ghost btn-sm" title="本文の末尾にAIが続きを書き足します">AIに続きを書かせる</button>
             <button id="btnDocCheck" class="btn-ghost btn-sm" title="カード設定と本文の矛盾をAIがチェック">整合性</button>
@@ -405,6 +406,19 @@
           <button id="btnMsBoard" class="btn-ghost btn-sm">ボード</button>
           <button id="btnMsFlow" class="btn-ghost btn-sm" title="指示をトークン数付きでキューに溜め、チャンク単位で連続生成して原稿に流し込みます">流れ生成</button>
           <button id="btnMsVertical" class="btn-ghost btn-sm" title="原稿エディタを縦書き表示に切替">縦書</button>
+          <button id="btnMsToCard" class="btn-ghost btn-sm" title="選択した文章をカードに登録">選択→カード</button>
+          <button id="btnMsPin" class="btn-ghost btn-sm" title="選択した文章をピン留め（常時表示・クリックでコピー）">ピン</button>
+          <button id="btnMsInsPrev" class="btn-ghost btn-sm" title="前のシーンの末尾400字をカーソル位置に挿入">前話末尾</button>
+          <span class="dropdown">
+            <button id="btnMsFormat" class="btn-ghost btn-sm" type="button">整形 ▾</button>
+            <div class="dropdown-menu down hidden" id="msFormatMenu" style="min-width:210px;height:auto">
+              <button class="menu-item" data-fmt="indent" type="button">字下げ：行頭に全角スペース</button>
+              <button class="menu-item" data-fmt="unindent" type="button">行頭の空白をすべて削除</button>
+              <button class="menu-item" data-fmt="blank" type="button">連続する空行を1つに</button>
+              <button class="menu-item" data-fmt="punct" type="button">句読点の重複を修正</button>
+              <button class="menu-item" data-fmt="spaces" type="button">連続する空白を1つに</button>
+            </div>
+          </span>
         </div>
         <div class="ms-stats-row">
           <div class="ms-stats-info">
@@ -417,6 +431,7 @@
         <div id="msTree"></div>
         <div class="ms-editor">
           <input id="msSceneTitle" placeholder="シーン名">
+          <div id="msPins" class="ms-pins hidden"></div>
           <textarea id="msEditor" placeholder="ここに本文を書きます。AI応答の「原稿」ボタンで追記できます"></textarea>
           <div id="msAiDock">
             <div class="ms-ai-instr">

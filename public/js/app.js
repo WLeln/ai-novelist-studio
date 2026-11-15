@@ -2,7 +2,7 @@
 import { $, chatEl, inputEl, convTitleEl, searchBox, searchResultsEl } from './dom.js';
 import { api, esc, appPrompt } from './util.js';
 import { config, fun, abortCtrl, allTemplates, current, setConfig, setAllCards, setAllTemplates } from './state.js';
-import { loadManuscript, toggleManuscriptPane, exportManuscript, msAddChapter, msAddScene, msDelete, msDuplicateScene, msDuplicateChapter, msScene, scheduleMsSave, msSetGoal, msForeshadowCheck, updateMsStats, openWritingChart, openChapterChart, msAiWrite, toggleMsBoard, toggleMsVertical, restoreMsVertical, msShowAiParts, initReadability } from './manuscript.js';
+import { loadManuscript, toggleManuscriptPane, exportManuscript, msAddChapter, msAddScene, msDelete, msDuplicateScene, msDuplicateChapter, msScene, scheduleMsSave, msSetGoal, msForeshadowCheck, updateMsStats, openWritingChart, openChapterChart, msAiWrite, toggleMsBoard, toggleMsVertical, restoreMsVertical, msShowAiParts, initReadability, msSelectionToCard, msPinSelection, msInsertPrevTail, msGotoScene, msFormatScene } from './manuscript.js';
 import { refreshSources, openSourcesModal, fillSourceProjectSelect, resetSourceForm, saveSource, deleteSource, importSourceFile, renderSourceList } from './sources.js';
 import { refreshDocuments, initDocEditor } from './documents.js';
 import { refreshConvList, restoreTabs, newConversation, renameConversation, saveProfile, deleteSelectedConvs, clearConvSelection, renderConvList, onSearchInput, queueDraftSave, refreshSceneSelect } from './conversations.js';
@@ -78,6 +78,12 @@ function bindUI() {
   $('btnMsBoard').onclick = toggleMsBoard;
   $('btnMsVertical').onclick = toggleMsVertical;
   $('btnMsFlow').onclick = openFlowGen;
+  $('btnMsToCard').onclick = msSelectionToCard;
+  $('btnMsPin').onclick = msPinSelection;
+  $('btnMsInsPrev').onclick = msInsertPrevTail;
+  document.querySelectorAll('#msFormatMenu [data-fmt]').forEach(b => {
+    b.onclick = () => msFormatScene(b.dataset.fmt);
+  });
   $('msGoal').onchange = e => msSetGoal(e.target.value);
   $('msSceneTitle').addEventListener('input', () => {
     const sc = msScene(); if (!sc) return;
@@ -91,6 +97,12 @@ function bindUI() {
     const cnt = document.querySelector('.ms-sc.sel .ms-count');
     if (cnt) cnt.textContent = `${sc.content.length}字`;
     updateMsStats();
+  });
+  // Ctrl+↑/↓ で前後のシーンへワープ
+  $('msEditor').addEventListener('keydown', (e) => {
+    if (e.isComposing || !(e.ctrlKey || e.metaKey)) return;
+    if (e.key === 'ArrowUp') { e.preventDefault(); msGotoScene(-1); }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); msGotoScene(1); }
   });
   // ソース管理
   $('btnSources').onclick = () => openSourcesModal();

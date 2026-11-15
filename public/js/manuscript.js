@@ -26,6 +26,7 @@ export async function loadManuscript() {
   if (goalEl) goalEl.value = manuscript.goal || '';
   renderMsTree();
   updateMsEditor();
+  renderMsPins();
 }
 
 // ---------- 執筆統計 ----------
@@ -703,4 +704,137 @@ export function exportManuscript() {
   }
   if (!out.trim()) { appAlert('原稿がまだありません'); return; }
   downloadFile((manuscript.title || 'manuscript') + '.txt', out.trim(), 'text/plain');
+}
+
+// ---------- 選択範囲→カード化 ----------
+export async function msSelectionToCard() {
+  const ta = $('msEditor');
+  const sc = msScene();
+  if (!ta || !sc) return;
+  const sel = ta.value.slice(ta.selectionStart, ta.selectionEnd).trim();
+  if (!sel) { appAlert('カードにする文章を本文で選択してください'); return; }
+  const name = await appPrompt('カード名を入力（人物名・用語・設定など）', sel.slice(0, 30));
+  if (name === null) return;
+  const nm = name.trim() || sel.slice(0, 30);
+  const before = ta.value.slice(Math.max(0, ta.selectionStart - 200), ta.selectionStart);
+  const after = ta.value.slice(ta.selectionEnd, ta.selectionEnd + 200);
+  const content = `【出典】原稿「${sc.title}」で選択して登録\n\n…${before}【${sel}】${after}…`;
+  const c = await api('/api/cards', { method: 'POST', body: JSON.stringify({ name: nm, kind: 'term', content }) });
+  const { refreshCards } = await import('./cards.js');
+  await refreshCards();
+  const st = $('msStatus');
+  if (st) { st.textContent = `カード「${nm}」を作成しました`; setTimeout(() => { if (st.textContent.includes('を作成しました')) st.textContent = ''; }, 3000); }
+  // カード編集モーダルを開いて種類・内容を整えられるようにする
+  try { const { openCardsModal } = await import('./cards.js'); openCardsModal(c); } catch {}
+}
+
+// ---------- シーン整形 ----------
+const MS_FORMATS = {
+  indent: {
+    label: '字下げ：各行の行頭に全角スペース',
+    fn: t => t.split('\n').map(l => l.trim() ? '　' + l.replace(/^[\s　]+/, '') : l).join('\n')
+  },
+  unindent: {
+    label: '行頭の空白をすべて削除',
+    fn: t => t.split('\n').map(l => l.replace(/^[\s　]+/, '')).join('\n')
+  },
+  blank: {
+    label: '連続する空行を1つに',
+    fn: t => t.replace(/\n{3,}/g, '\n\n')
+  },
+  punct: {
+    label: '句読点の重複を修正（、、→、 等）',
+    fn: t => t.replace(/([、。，．！？])\1+/g, '$1')
+  },
+  spaces: {
+    label: '連続する空白を1つに',
+    fn: t => t.replace(/[ 　\t]{2,}/g, m => m.includes('　') ? '　' : ' ')
+  }
+};
+export function msFormatScene(kind) {
+  const sc = msScene();
+  const f = MS_FORMATS[kind];
+  if (!sc || !f) return;
+  const before = sc.content || '';
+  const after = f.fn(before);
+  if (after === before) {
+    const st = $('msStatus'); if (st) { st.textContent = '整形：変更はありませんでした'; setTimeout(() => { st.textContent = ''; }, 2000); }
+    return;
+  }
+  sc.content = after;
+  renderMsTree(); updateMsEditor(); scheduleMsSave(); updateMsStats();
+  const st = $('msStatus'); if (st) { st.textContent = `整形しました（${f.label}）`; setTimeout(() => { if (st.textContent.startsWith('整形')) st.textContent = ''; }, 3000); }
+}
+
+// ---------- シーン間ワープ ----------
+function msFlatScenes() {
+  const out = [];
+  for (const ch of manuscript.chapters) for (const sc of ch.scenes) out.push({ ch, sc });
+  return out;
+}
+export function msGotoScene(dir) {
+  const flat = msFlatScenes();
+  const i = flat.findIndex(x => x.sc.id === msSel.sceneId);
+  const j = i + dir;
+  if (j < 0 || j >= flat.length) return;
+  msSel.chapterId = flat[j].ch.id;
+  msSel.sceneId = flat[j].sc.id;
+  renderMsTree(); updateMsEditor();
+  document.querySelector('.ms-sc.sel')?.scrollIntoView({ block: 'nearest' });
+}
+export function msInsertPrevTail() {
+  const flat = listManuscriptScenes();
+  const i = flat.findIndex(x => x.id === msSel.sceneId);
+  const prev = i > 0 ? flat[i - 1] : null;
+  if (!prev || !(prev.content || '').trim()) { appAlert('前のシーンがありません'); return; }
+  const tail = prev.content.trim().slice(-400);
+  const ta = $('msEditor');
+  if (!ta) return;
+  ta.focus();
+  ta.setRangeText(tail, ta.selectionStart, ta.selectionEnd, 'end');
+  ta.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+// ---------- ピン留め参照 ----------
+const msPins = JSON.parse(localStorage.getItem('ms_pins') || '[]');
+function saveMsPins() { localStorage.setItem('ms_pins', JSON.stringify(msPins.slice(0, 20))); }
+export function msPinSelection() {
+  const ta = $('msEditor');
+  if (!ta) return;
+  const t = ta.value.slice(ta.selectionStart, ta.selectionEnd).trim();
+  if (!t) { appAlert('ピン留めする文章を本文で選択してください'); return; }
+  msPins.unshift({ text: t.slice(0, 500), ts: Date.now() });
+  if (msPins.length > 20) msPins.length = 20;
+  saveMsPins();
+  renderMsPins();
+}
+export function renderMsPins() {
+  const el = $('msPins');
+  if (!el) return;
+  el.innerHTML = '';
+  el.classList.toggle('hidden', !msPins.length);
+  for (const p of msPins) {
+    const chip = document.createElement('span');
+    chip.className = 'ms-pin';
+    chip.title = 'クリックでコピー / ×で削除';
+    const label = document.createElement('span');
+    label.className = 'ms-pin-text';
+    label.textContent = p.text.length > 40 ? p.text.slice(0, 39) + '…' : p.text;
+    const x = document.createElement('button');
+    x.className = 'ms-pin-x';
+    x.textContent = '×';
+    x.onclick = (e) => {
+      e.stopPropagation();
+      const i = msPins.indexOf(p);
+      if (i >= 0) msPins.splice(i, 1);
+      saveMsPins(); renderMsPins();
+    };
+    chip.appendChild(label); chip.appendChild(x);
+    chip.onclick = async () => {
+      try { await navigator.clipboard.writeText(p.text); } catch {}
+      const st = $('msStatus');
+      if (st) { st.textContent = 'ピン留めをコピーしました'; setTimeout(() => { if (st.textContent === 'ピン留めをコピーしました') st.textContent = ''; }, 2000); }
+    };
+    el.appendChild(chip);
+  }
 }
