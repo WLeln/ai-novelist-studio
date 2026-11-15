@@ -1267,6 +1267,7 @@ ruby rt { font-size: 0.55em; color: var(--text-dim); }
   flex-shrink: 0; width: 24px; height: 24px; border-radius: 8px;
   border: 1px solid var(--border); background: transparent; color: var(--text-dim);
   font-size: 13px; line-height: 1; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; padding: 0;
 }
 .flow-row .flow-del:hover { color: var(--danger); border-color: var(--danger); }
 #flowItems input { padding: 6px 9px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-panel); color: var(--text); font-size: 12.5px; font-family: inherit; outline: none; }
