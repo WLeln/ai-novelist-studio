@@ -405,6 +405,9 @@ function onSuggestKeydown(e) {
   }
 }
 
+// タブオープナーはモジュール読み込み時に登録（restoreTabsより前に必要）
+registerTabOpener('note', () => { showNotesView(); refreshNotes(); });
+
 export function showNotesViewEntry() {
   activateTab('note', 'main');
   showNotesView();
@@ -415,7 +418,6 @@ export function showNotesViewEntry() {
 }
 
 export function initNotes() {
-  registerTabOpener('note', () => { showNotesView(); refreshNotes(); });
   $('btnNotes')?.addEventListener('click', showNotesViewEntry);
   $('btnNoteNew')?.addEventListener('click', newNote);
   $('btnNoteClose')?.addEventListener('click', () => { saveCurrent(); showChatView(); });

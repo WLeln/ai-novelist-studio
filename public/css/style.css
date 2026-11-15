@@ -240,11 +240,12 @@ button {
 
 .sidebar-footer {
   padding: 12px 14px; border-top: 1px solid var(--border);
-  display: flex; gap: 8px;
+  display: flex; flex-wrap: wrap; gap: 6px;
 }
 .sidebar-footer .btn-ghost {
-  flex: 1; justify-content: center; color: var(--text-sidebar);
+  flex: 1 1 40%; justify-content: center; color: var(--text-sidebar);
   border-color: var(--border-strong); font-size: 12px;
+  min-width: 0; overflow: hidden; white-space: nowrap;
 }
 .sidebar-footer .btn-ghost:hover { color: var(--text); border-color: var(--accent); }
 
