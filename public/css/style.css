@@ -141,7 +141,7 @@ button {
 
 /* ---------- Sidebar ---------- */
 #sidebar {
-  width: 264px; flex-shrink: 0;
+  width: 320px; flex-shrink: 0;
   background: var(--bg-sidebar); color: var(--text-sidebar);
   display: flex; flex-direction: column;
   border-right: 1px solid var(--border);
@@ -726,7 +726,7 @@ body.writing-mode .msg .content { font-size: 16.5px; line-height: 2.1; }
   /* サイドバーをドロワー化（fixed要素はzoomで自動補正されるので通常のビューポート指定でよい） */
   #sidebar {
     position: fixed; top: 0; left: 0; bottom: 0; z-index: 95;
-    width: min(320px, 88vw);
+    width: min(340px, 88vw);
     transform: translateX(-105%);
     transition: transform 0.22s ease;
     box-shadow: none;
