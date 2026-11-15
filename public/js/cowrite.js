@@ -1,7 +1,7 @@
 // ---------- AI共著執筆：原稿へのインライン提案（採用/却下/別案） ----------
 import { $ } from './dom.js';
 import { appAlert } from './util.js';
-import { allCards, config, styleSampleBlock } from './state.js';
+import { allCards, config, styleSampleBlock, overusedWordBlock } from './state.js';
 import { callApiOnce } from './context.js';
 import { msScene, msCommitAiEdit, listManuscriptScenes } from './manuscript.js';
 
@@ -60,6 +60,7 @@ function buildPrompt(t, instr) {
     entry?.plot ? `【プロットメモ】${entry.plot}` : '',
     styleText ? `【文体指定】${styleText}` : '',
     styleSampleBlock() || '',
+    overusedWordBlock([fullText, prev?.content, next?.content]) || '',
     prev ? `【直前のシーン「${prev.title}」末尾】\n${(prev.content || '').slice(-1000)}` : '',
     next ? `【次のシーン「${next.title}」冒頭】\n${(next.content || '').slice(0, 400)}` : '',
     cards ? `【関連する設定・登場人物】\n${cards}` : ''

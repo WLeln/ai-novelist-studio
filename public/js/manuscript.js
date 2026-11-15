@@ -1,7 +1,7 @@
 // ---------- Manuscript（原稿ペイン） ----------
 import { $ } from './dom.js';
 import { api, appPrompt, appConfirm, appAlert, appDialog, downloadFile, showResultModal, esc } from './util.js';
-import { allCards, current, config, styleSampleBlock } from './state.js';
+import { allCards, current, config, styleSampleBlock, overusedWordBlock } from './state.js';
 import { callApiOnce } from './context.js';
 import { Chart, registerables } from './vendor.bundle.js';
 import { showChatView, showMsView, activateTab, registerTabOpener, showEmptyChat, activeTabType, tabs as convTabs } from './conversations.js';
@@ -616,6 +616,7 @@ export async function msAiWrite() {
         sc.plot ? `【プロットメモ】${sc.plot}` : '',
         styleText ? `【文体指定】${styleText}` : '',
         styleSampleBlock() || '',
+        overusedWordBlock([prevTail, tail, sc.content]) || '',
         lengthHint ? `【指示】${lengthHint}字程度で執筆してください` : '',
         prevTail,
         tail,
@@ -1053,6 +1054,7 @@ export async function msWriteChapter() {
           sc.plot ? `【プロットメモ】${sc.plot}` : '',
           styleText ? `【文体指定】${styleText}` : '',
           styleSampleBlock() || '',
+          overusedWordBlock([prevTail, ch.scenes.map(s => s.content || '').join('\n'), sc.content]) || '',
           prevTail,
           cardText ? `【設定・登場人物】\n${cardText}` : '',
           'このシーンの本文を最初から執筆してください。'

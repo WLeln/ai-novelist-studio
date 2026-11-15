@@ -1,7 +1,7 @@
 // ---------- Send / Completion engine ----------
 import { $, chatEl, inputEl, sendBtn, stopBtn, tokenBadgeEl } from './dom.js';
 import { esc, appAlert, appPrompt, nekoifyInput, api } from './util.js';
-import { config, current, fun, busy, abortCtrl, allSources, pendingStyle, setBusyState, setAbortCtrl, setPendingStyle, draftKey, styleSampleBlock } from './state.js';
+import { config, current, fun, busy, abortCtrl, allSources, pendingStyle, setBusyState, setAbortCtrl, setPendingStyle, draftKey, styleSampleBlock, overusedWordBlock } from './state.js';
 import { addMsg, addBotMsg, addUserActions, addBotActions, addSceneDivider, renderBotContent, scrollChat, updateCharCount } from './messages.js';
 import { saveConversation, refreshConvList, renderConvList, openConversation } from './conversations.js';
 import { selectedCardsText, maybeAutoCompress, rawStartIndex, compressAgedMemories, callApiOnce } from './context.js';
@@ -115,6 +115,14 @@ function composeSystemPrompt(opts = {}) {
   } catch {}
   const ss = styleSampleBlock();
   if (ss) parts.push(ss);
+  // 繰り返しワード自動検出：直近の会話で局所的に多用されている語をAIに避けさせる
+  const repSrc = (current?.messages || [])
+    .slice(-14)
+    .map(m => (typeof m.content === 'string' ? m.content : ''))
+    .join('\n')
+    .slice(-12000);
+  const repBlock = overusedWordBlock(repSrc);
+  if (repBlock) parts.push(repBlock);
   if (p.plot?.trim()) parts.push('【プロット】\n' + applyVars(p.plot.trim()));
   if (p.summary?.trim()) parts.push('【これまでのあらすじ（圧縮済み）】\n' + applyVars(p.summary.trim()));
   if (config.params.hybridMemory !== false) {

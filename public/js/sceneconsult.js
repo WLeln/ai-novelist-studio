@@ -1,7 +1,7 @@
 // ---------- シーン相談：シーン別のAI Q&A（履歴はシーンに保存） ----------
 import { $ } from './dom.js';
 import { esc, fmtDate } from './util.js';
-import { allCards, config, styleSampleBlock } from './state.js';
+import { allCards, config, styleSampleBlock, overusedWordBlock } from './state.js';
 import { callApiOnce } from './context.js';
 import { msScene, msSceneById, listManuscriptScenes, scheduleMsSave, msAppendAiText } from './manuscript.js';
 
@@ -39,6 +39,7 @@ function buildContext(sc) {
     plot,
     config?.stylePreset ? `【文体指定】${config.stylePreset}` : '',
     sample || '',
+    overusedWordBlock(text) || '',
     prev ? `【直前のシーン「${prev.title}」末尾】\n${(prev.content || '').slice(-800)}` : '',
     `【このシーンの本文】\n${text.slice(-6000) || '（未執筆）'}`,
     next ? `【次のシーン「${next.title}」冒頭】\n${(next.content || '').slice(0, 300)}` : '',

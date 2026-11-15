@@ -37,3 +37,4 @@ Express + SQLite（node:sqlite）のバックエンド（server.js）と、バ�
 - ノート（Zettelkasten）: `public/js/notes.js`、タブtype `note`（singleton id='main'、タブキー `n:`）。kind='note' を cardCRUD でCRUD（/api/notes）。`[[名前]]`リンク・`#タグ`・被リンク一覧・カード/ソース昇格。ビューは showNotesView（conversations.js）
 - ノートIME: notes.js内。noteContentで `[[` →ノート名補完（Tab/Enter確定・未作成なら新規作成候補）、`#` →タグ補完。position:fixedの #noteSuggest ポップアップ
 - のべりすと非OpenAI互換モデル: server.js `/api/chat` がモデル名で判別しネイティブAPI（`POST {base}/api`、`{text,length,model}`→`{data:{'0'}}`）へルーティング。messagesは会話ログ形式に直列化。モデル別ctx上限（spiko系40k/damsel_ray 12k/supertrin 9k/damsel 2.4kトークン）を超えないよう古いターンから削る。ストリーミング非対応・出力上限2048トークン
+- 繰り返しワード自動検出: state.jsの`overusedWordBlock(texts)`。漢字熟語/カタカナ/ひらがなを局所密度(800字窓3回+)で検出し「言い換え指示」をプロンプト自動注入。chat.js(composeSystemPrompt)・manuscript.js(AI執筆/章執筆)・cowrite・ghostwrite・sceneconsultに配線済み。flowgenはcomposeSystemPrompt経由で自動適用
