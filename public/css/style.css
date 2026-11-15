@@ -1248,10 +1248,12 @@ ruby rt { font-size: 0.55em; color: var(--text-dim); }
 #manuscriptPane.ms-vertical #msEditor {
   writing-mode: vertical-rl;
   text-orientation: upright;
-  height: 62vh;
   resize: none;
 }
-#manuscriptPane.ms-vertical .ms-editor { min-height: 0; }
+/* 縦書き時はエディタがペインの残りスペースを使う（max-height:55%だと下が切れる） */
+#manuscriptPane.ms-vertical .ms-editor { min-height: 0; max-height: none; flex: 1; }
+#manuscriptPane.ms-vertical #msTree { flex: 0 1 auto; max-height: 34%; }
+#manuscriptPane.ms-vertical #msEditor { height: auto; min-height: 0; flex: 1 1 auto; }
 
 /* ---------- 流れ生成 ---------- */
 .flow-row {
