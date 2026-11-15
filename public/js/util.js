@@ -10,7 +10,7 @@ export function icon(name) {
 }
 
 // ---------- カスタムダイアログ（Electronは prompt/confirm/alert 非対応） ----------
-export function appDialog(message, { input = false, defValue = '', okText = 'OK', multiline = false, width = 'min(400px,90vw)' } = {}) {
+export function appDialog(message, { input = false, defValue = '', okText = 'OK', multiline = false, width = 'min(400px,90vw)', cancelText = null } = {}) {
   return new Promise(resolve => {
     const overlay = document.createElement('div');
     overlay.className = 'modal';
@@ -23,7 +23,7 @@ export function appDialog(message, { input = false, defValue = '', okText = 'OK'
             : `<input type="text" class="dlg-input" value="${esc(defValue)}" style="width:100%">`) : ''}
         </div>
         <div class="modal-footer" style="justify-content:flex-end;gap:8px">
-          ${input ? '<button class="btn-ghost dlg-cancel">キャンセル</button>' : ''}
+          ${(input || cancelText) ? `<button class="btn-ghost dlg-cancel">${esc(cancelText || 'キャンセル')}</button>` : ''}
           <button class="btn-primary dlg-ok">${esc(okText)}</button>
         </div>
       </div>`;
@@ -47,7 +47,7 @@ export function appDialog(message, { input = false, defValue = '', okText = 'OK'
   });
 }
 export const appAlert = (m) => appDialog(m, { okText: 'OK' }).then(() => {});
-export const appConfirm = (m) => appDialog(m).then((v) => v === true);
+export const appConfirm = (m) => appDialog(m, { okText: 'はい', cancelText: 'いいえ' }).then((v) => v === true);
 export const appPrompt = (m, def = '') => appDialog(m, { input: true, defValue: def });
 
 // 猫化変換

@@ -73,7 +73,7 @@ export function openFlowGen() {
     $('btnFlowCancel')?.addEventListener('click', () => flowCtrl?.abort());
     const close = async () => {
       if (flowCtrl) {
-        if (!(await appConfirm('生成中です。中断して閉じますか？（中断しない場合は「キャンセル」で戻れます）'))) return;
+        if (!(await appConfirm('生成中です。中断して閉じますか？（中断しない場合は「いいえ」で戻れます）'))) return;
         flowCtrl.abort();
       }
       modal.classList.add('hidden'); persist();
