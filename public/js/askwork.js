@@ -85,7 +85,8 @@ function renderAnswer(text) {
     if (item) {
       const btn = document.createElement('button');
       btn.className = 'ask-src';
-      btn.textContent = '📄 ' + item.label.replace(/「.*?」/, '');
+      const short = item.label.length > 26 ? item.label.slice(0, 25) + '…' : item.label;
+      btn.textContent = '📄 ' + short;
       btn.title = item.label + ' を開く';
       btn.onclick = () => { item.jump?.(); $('askModal')?.classList.add('hidden'); };
       frag.appendChild(btn);

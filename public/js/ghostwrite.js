@@ -2,7 +2,7 @@
 import { $ } from './dom.js';
 import { config, styleSampleBlock } from './state.js';
 import { callApiOnce } from './context.js';
-import { msCommitAiEdit } from './manuscript.js';
+import { msCommitAiEdit, msScene } from './manuscript.js';
 
 let ghostEl = null, taEl = null, wrapEl = null;
 let suggestion = null;      // { text, start, end }
@@ -84,7 +84,15 @@ async function requestSuggestion() {
     const sug = (text || '').trim().replace(/^[\s「『]+|[」』\s]+$/g, '');
     // カーソル位置・本文が生成中に変わっていないか確認
     if (!sug || taEl.value !== v || taEl.selectionStart !== s) return;
-    suggestion = { text: sug, start: s, end: e };
+    // プログラム的なvalue書き換え（シーン切替・履歴復元等）はinputイベントを発火しないため、
+    // 確定時にシーンIDと前後コンテキストを再検証するための情報を保持する
+    suggestion = {
+      text: sug, start: s, end: e,
+      sceneId: msScene()?.id || null,
+      vlen: v.length,
+      ctxPre: v.slice(Math.max(0, s - 100), s),
+      ctxPost: v.slice(e, Math.min(v.length, e + 100))
+    };
     renderGhost();
     const st = $('msStatus');
     if (st && ghostEl.innerHTML) { st.textContent = 'TabでAIの続きが確定できます（Escで消去）'; setTimeout(() => { if (st.textContent.includes('TabでAI')) st.textContent = ''; }, 3000); }
@@ -99,7 +107,17 @@ function schedule() {
 
 function accept() {
   if (!suggestion) return false;
-  const { text, start, end } = suggestion;
+  const { text, start, end, sceneId, vlen, ctxPre, ctxPost } = suggestion;
+  const cur = taEl.value || '';
+  // シーン切替・本文のプログラム的変更（履歴復元・AI追記等）後の誤挿入を防ぐ
+  if ((msScene()?.id || null) !== sceneId) { hideGhost(); return false; }
+  if (cur.length !== vlen
+    || taEl.selectionStart !== start || taEl.selectionEnd !== end
+    || cur.slice(Math.max(0, start - 100), start) !== ctxPre
+    || cur.slice(end, Math.min(cur.length, end + 100)) !== ctxPost) {
+    hideGhost();
+    return false;
+  }
   // msCommitAiEdit 経由でAI出所（aiSnippets）にも記録される
   if (!msCommitAiEdit(start, end, text)) return false;
   // updateMsEditorでvalue再設定されるため、カーソルを挿入末尾に戻す

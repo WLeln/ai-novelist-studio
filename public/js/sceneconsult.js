@@ -3,10 +3,12 @@ import { $ } from './dom.js';
 import { esc, fmtDate } from './util.js';
 import { allCards, config, styleSampleBlock } from './state.js';
 import { callApiOnce } from './context.js';
-import { msScene, listManuscriptScenes, scheduleMsSave, msAppendAiText } from './manuscript.js';
+import { msScene, msSceneById, listManuscriptScenes, scheduleMsSave, msAppendAiText } from './manuscript.js';
 
 const el = (id) => $(id);
 let busy = false;
+let consultSceneId = null; // モーダルを開いた時点のシーン（開いた後の選択変更で対象がズレないよう固定）
+const consultScene = () => consultSceneId ? msSceneById(consultSceneId) : msScene();
 
 function relatedCards(text) {
   const named = allCards
@@ -48,7 +50,7 @@ function buildContext(sc) {
 function renderLog() {
   const log = el('consultLog');
   if (!log) return;
-  const sc = msScene();
+  const sc = consultScene();
   const notes = sc?.aiNotes || [];
   if (!notes.length) {
     log.innerHTML = '<p class="hint">まだ相談はありません。下の欄に質問を入力してください。</p>';
@@ -65,9 +67,11 @@ function renderLog() {
     </div>`).join('');
   log.querySelectorAll('.consult-apply').forEach(b => {
     b.onclick = () => {
-      const n = msScene()?.aiNotes?.[parseInt(b.dataset.i, 10)];
+      const sc = consultScene();
+      const n = sc?.aiNotes?.[parseInt(b.dataset.i, 10)];
       if (!n) return;
-      if (msAppendAiText(n.a)) {
+      // msAppendAiTextは既定で「選択中」シーンに追記するため、対象シーンを明示する
+      if (msAppendAiText(n.a, sc)) {
         const st = el('consultStatus');
         if (st) { st.textContent = '回答を本文に追記しました'; setTimeout(() => { st.textContent = ''; }, 2500); }
       }
@@ -75,7 +79,8 @@ function renderLog() {
   });
   log.querySelectorAll('.consult-card').forEach(b => {
     b.onclick = async () => {
-      const n = msScene()?.aiNotes?.[parseInt(b.dataset.i, 10)];
+      const sc = consultScene();
+      const n = sc?.aiNotes?.[parseInt(b.dataset.i, 10)];
       if (!n) return;
       const { openCardExtract } = await import('./cardextract.js');
       openCardExtract(`【質問】${n.q}\n\n【回答】\n${n.a}`, 'シーン相談の回答');
@@ -85,7 +90,7 @@ function renderLog() {
 }
 
 async function ask() {
-  const sc = msScene();
+  const sc = consultScene();
   const inp = el('consultInput');
   const q = (inp?.value || '').trim();
   if (!sc) { el('consultStatus') && (el('consultStatus').textContent = 'シーンを選択してください'); return; }
@@ -101,8 +106,8 @@ async function ask() {
       { role: 'user', content: `${buildContext(sc)}\n\n【質問】\n${q}` }
     ]);
     const a = (text || '').trim() || '（応答がありませんでした）';
-    // 生成中にシーンが切り替わっていないか確認してから保存
-    if (msScene()?.id === sc.id) {
+    // 生成中にシーンが削除されていないか確認してから保存
+    if (consultScene()?.id === sc.id) {
       sc.aiNotes = sc.aiNotes || [];
       sc.aiNotes.push({ ts: Date.now(), q: q.slice(0, 4000), a: a.slice(0, 8000) });
       if (sc.aiNotes.length > 20) sc.aiNotes = sc.aiNotes.slice(-20);
@@ -123,6 +128,7 @@ async function ask() {
 export function openConsult() {
   const sc = msScene();
   if (!sc) { return; }
+  consultSceneId = sc.id;
   const flat = listManuscriptScenes().find(x => x.id === sc.id);
   const t = el('consultTitle');
   if (t) t.innerHTML = `<svg class="icon"><use href="#i-sparkle"/></svg> シーン相談：${esc(flat ? flat.chapter + ' / ' + sc.title : sc.title)}`;

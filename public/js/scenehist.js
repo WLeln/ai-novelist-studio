@@ -5,6 +5,7 @@ import { msScene, listManuscriptScenes, msApplyContent } from './manuscript.js';
 
 const el = (id) => $(id);
 let currentRev = null; // {i, ts, content}
+let histSceneId = null; // モーダルを開いた時点のシーン（開いた後の選択変更で対象がズレないよう固定）
 
 // 簡易行差分：共通の先頭/末尾行を除いた中間部分を -/+ で表示（旧版→現在）
 function renderDiff(oldText, newText) {
@@ -32,6 +33,7 @@ async function loadList() {
   const list = el('histList');
   const det = el('histDetail');
   if (!sc || !list) return;
+  histSceneId = sc.id;
   const flat = listManuscriptScenes().find(x => x.id === sc.id);
   const t = el('histTitle');
   if (t) t.innerHTML = `<svg class="icon"><use href="#i-refresh"/></svg> 履歴：${esc(flat ? flat.chapter + ' / ' + sc.title : sc.title)}`;
@@ -64,8 +66,10 @@ async function showRev(sceneId, idx) {
   try {
     const r = await api(`/api/scenehist/${encodeURIComponent(sceneId)}/${idx}`);
     currentRev = { i: idx, ts: r.ts, content: r.content || '' };
-    const sc = msScene();
-    const cur = sc?.content || '';
+    // msScene()は「現在選択中」のシーンを返すため、モーダル表示中に選択が変わると別シーンを指す。
+    // 履歴対象のシーンIDで本文を引く
+    const target = listManuscriptScenes().find(x => x.id === sceneId);
+    const cur = target?.content || '';
     const changed = currentRev.content !== cur;
     det.innerHTML = `
       <div class="hist-detail-head">
@@ -75,7 +79,12 @@ async function showRev(sceneId, idx) {
       <div class="tm-diff-pre" style="margin-top:8px">${renderDiff(currentRev.content, cur)}</div>`;
     const btn = el('btnHistRestore');
     if (btn) btn.onclick = async () => {
-      if (!(await appConfirm(`シーン「${sc?.title || ''}」を ${fmtDate(r.ts)} 時点の内容に戻しますか？\n（現在の内容は新しい履歴として自動記録されます）`))) return;
+      const sel = msScene();
+      if (!sel || sel.id !== sceneId) {
+        appAlert('選択中のシーンが履歴対象と変わっています。対象シーンを選択し直してから復元してください');
+        return;
+      }
+      if (!(await appConfirm(`シーン「${sel.title || ''}」を ${fmtDate(r.ts)} 時点の内容に戻しますか？\n（現在の内容は新しい履歴として自動記録されます）`))) return;
       if (msApplyContent(currentRev.content)) {
         appAlert('復元しました');
         loadList();

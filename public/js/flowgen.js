@@ -2,7 +2,7 @@
 import { $ } from './dom.js';
 import { appAlert, appConfirm, esc } from './util.js';
 import { buildRequestBody, composeSystemPrompt, apiWarnMissing } from './chat.js';
-import { msAppendGenerated, msRefresh } from './manuscript.js';
+import { msAppendGenerated, msRefresh, msRevealPane } from './manuscript.js';
 
 const LS_KEY = 'flowgen_items';
 let flowCtrl = null;
@@ -222,8 +222,7 @@ async function runFlow() {
       updateProgress(items.length);
     }
     msRefresh(); // 追加したシーンをまとめてUIに反映
-    $('manuscriptPane')?.classList.remove('hidden');
-    $('qbManuscript')?.classList.add('active');
+    msRevealPane();
   } finally {
     $('btnFlowRun').disabled = false;
     $('btnFlowCancel')?.classList.add('hidden');

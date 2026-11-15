@@ -112,7 +112,7 @@ const selectedConvs = new Set();
 let lastSelIndex = -1;
 let visibleConvs = [];
 // スター（localStorage管理・重要な会話を先頭に表示）
-const convStars = new Set(JSON.parse(localStorage.getItem('conv_stars') || '[]'));
+const convStars = new Set((() => { try { return JSON.parse(localStorage.getItem('conv_stars') || '[]'); } catch { return []; } })());
 function isConvStarred(id) { return convStars.has(id); }
 function toggleConvStar(id) {
   if (convStars.has(id)) convStars.delete(id); else convStars.add(id);
@@ -120,7 +120,7 @@ function toggleConvStar(id) {
   renderConvList();
 }
 // 未読管理（最後に開いた時刻を記録。updatedがそれより新しければ未読ドット）
-const convSeen = JSON.parse(localStorage.getItem('conv_seen') || '{}');
+const convSeen = (() => { try { return JSON.parse(localStorage.getItem('conv_seen') || '{}'); } catch { return {}; } })();
 function markConvSeen(id) {
   convSeen[id] = Date.now();
   localStorage.setItem('conv_seen', JSON.stringify(convSeen));

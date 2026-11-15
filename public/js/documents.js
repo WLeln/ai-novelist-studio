@@ -124,7 +124,7 @@ export async function newDocument() {
   });
   await refreshDocuments();
   await openDocument(d.id);
-  $('docEditor .ProseMirror')?.focus();
+  editor?.commands?.focus();
 }
 
 export async function deleteCurrentDocument() {

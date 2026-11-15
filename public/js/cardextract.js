@@ -23,10 +23,25 @@ async function runExtract() {
       { role: 'system', content: 'あなたは小説の設定管理者です。与えられた文章から、カード化すべき設定・知識を抽出してください。出力はJSON配列のみ。各要素: {"name":"名前","kind":"character|world|term|foreshadow|style","content":"設定内容（200字以内）","aliases":"別名・読み（カンマ区切り、なければ空）","relations":"関係（なければ空）"}。既存カードにある名前は除外。最大8件。文章に設定的な情報がなければ [] を返す。' },
       { role: 'user', content: `【既存カード（これらは除外）】\n${existing || '（なし）'}\n\n【抽出対象テキスト】\n${sourceText.slice(0, 12000)}` }
     ]);
-    const raw = (text || '').trim();
-    const m = raw.match(/\[[\s\S]*\]/);
-    candidates = m ? JSON.parse(m[0]) : [];
-    if (!Array.isArray(candidates)) candidates = [];
+    const raw = (text || '').trim().replace(/^```(?:json)?\s*|\s*```$/g, '');
+    let parsed = null;
+    try { parsed = JSON.parse(raw); } catch {
+      // 配列部分だけを抜き出す（前後に説明文が付く場合）。貪欲マッチは末尾の ] まで呑むので
+      // 複数配列や説明文中の括弧で壊れる。先頭の [ から対応する ] を探す
+      const start = raw.indexOf('[');
+      if (start >= 0) {
+        let depth = 0, end = -1, inStr = false, escCh = false;
+        for (let i = start; i < raw.length; i++) {
+          const ch = raw[i];
+          if (inStr) { if (escCh) escCh = false; else if (ch === '\\') escCh = true; else if (ch === '"') inStr = false; continue; }
+          if (ch === '"') inStr = true;
+          else if (ch === '[') depth++;
+          else if (ch === ']') { depth--; if (depth === 0) { end = i; break; } }
+        }
+        if (end > start) { try { parsed = JSON.parse(raw.slice(start, end + 1)); } catch {} }
+      }
+    }
+    candidates = Array.isArray(parsed) ? parsed : [];
     candidates = candidates.filter(c => c && c.name && typeof c.name === 'string').slice(0, 8);
     if (!candidates.length) {
       if (st) st.textContent = 'カード化できる候補が見つかりませんでした';
@@ -63,9 +78,19 @@ function renderCandidates() {
 
 async function saveSelected() {
   const list = el('extractList');
-  const checked = [...(list?.querySelectorAll('input:checked') || [])]
+  let checked = [...(list?.querySelectorAll('input:checked') || [])]
     .map(cb => candidates[parseInt(cb.dataset.i, 10)]).filter(Boolean);
   if (!checked.length) { appAlert('カード化する候補を選んでください'); return; }
+  // 既存カード・候補内の重複名を除外（AIが既存を返してきても二重作成しない）
+  const existingNames = new Set(allCards.map(c => (c.name || '').trim()));
+  const seenNames = new Set();
+  checked = checked.filter(c => {
+    const nm = String(c.name || '').trim();
+    if (!nm || existingNames.has(nm) || seenNames.has(nm)) return false;
+    seenNames.add(nm);
+    return true;
+  });
+  if (!checked.length) { appAlert('作成対象がありません（既存カードと重複しています）'); return; }
   const st = el('extractStatus');
   if (st) st.textContent = 'カードを作成中…';
   let n = 0;

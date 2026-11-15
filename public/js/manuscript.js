@@ -4,10 +4,11 @@ import { api, appPrompt, appConfirm, appAlert, appDialog, downloadFile, showResu
 import { allCards, current, config, styleSampleBlock } from './state.js';
 import { callApiOnce } from './context.js';
 import { Chart, registerables } from './vendor.bundle.js';
+import { showChatView, activateTab, showEmptyChat, tabs as convTabs } from './conversations.js';
 
 let manuscript = { title: '無題', chapters: [] };
 let msSel = { chapterId: null, sceneId: null };
-const msCollapsed = new Set(JSON.parse(localStorage.getItem('ms_collapsed') || '[]'));
+const msCollapsed = new Set((() => { try { return JSON.parse(localStorage.getItem('ms_collapsed') || '[]'); } catch { return []; } })());
 function toggleMsCollapse(chId) {
   if (msCollapsed.has(chId)) msCollapsed.delete(chId); else msCollapsed.add(chId);
   localStorage.setItem('ms_collapsed', JSON.stringify([...msCollapsed]));
@@ -163,6 +164,14 @@ export function msScene() {
   const ch = msChapter();
   return ch ? ch.scenes.find(s => s.id === msSel.sceneId) : null;
 }
+// ID指定でシーンオブジェクトを取得（モーダル等で選択が変わっても対象を固定するため）
+export function msSceneById(id) {
+  for (const ch of manuscript.chapters) {
+    const sc = ch.scenes.find(s => s.id === id);
+    if (sc) return sc;
+  }
+  return null;
+}
 
 // ---------- シーン一覧・シーン紐付け ----------
 export function listManuscriptScenes() {
@@ -191,14 +200,26 @@ export function linkedSceneContext() {
   const tail = (r.scene.content || '').trim().slice(-1200);
   return { chapterTitle: r.chapter.title, title: r.scene.title, tail };
 }
+// 原稿ペインを前面に出す。doc/graph/noteビューからのジャンプ時は
+// チャットビュー＋会話タブに戻さないとペインが混在しタブ状態も壊れる
+export function msRevealPane() {
+  showChatView();
+  if (current) activateTab('conv', current.id);
+  else {
+    const t = convTabs.find(t => t.type === 'conv');
+    if (t) activateTab('conv', t.id); else showEmptyChat();
+  }
+  $('manuscriptPane')?.classList.remove('hidden');
+  $('qbManuscript')?.classList.add('active');
+}
+
 // 検索結果からのジャンプ用：シーンを選択して原稿ペインを開く
 window.__openScene = (sceneId) => {
   for (const ch of manuscript.chapters) {
     if (ch.scenes.some(s => s.id === sceneId)) {
       msSel.chapterId = ch.id; msSel.sceneId = sceneId;
       renderMsTree(); updateMsEditor();
-      $('manuscriptPane')?.classList.remove('hidden');
-      $('qbManuscript')?.classList.add('active');
+      msRevealPane();
       return true;
     }
   }
@@ -394,10 +415,7 @@ export function adoptToManuscript(text, opts = {}) {
   renderMsTree();
   updateMsEditor();
   scheduleMsSave();
-  if (openPane) {
-    $('manuscriptPane').classList.remove('hidden');
-    $('qbManuscript')?.classList.add('active');
-  }
+  if (openPane) msRevealPane();
   $('msStatus').textContent = `「${sc.title}」に追加しました`;
   setTimeout(() => { if ($('msStatus').textContent.startsWith('「')) $('msStatus').textContent = ''; }, 2500);
 }
@@ -450,8 +468,7 @@ export function msAppendGenerated({ chapterTitle = '', sceneTitle = '', content 
     msSel.sceneId = sc.id;
     renderMsTree();
     updateMsEditor();
-    $('manuscriptPane')?.classList.remove('hidden');
-    $('qbManuscript')?.classList.add('active');
+    msRevealPane();
   }
   return sc;
 }
@@ -829,7 +846,7 @@ export function msInsertPrevTail() {
 }
 
 // ---------- ピン留め参照 ----------
-const msPins = JSON.parse(localStorage.getItem('ms_pins') || '[]');
+const msPins = (() => { try { return JSON.parse(localStorage.getItem('ms_pins') || '[]'); } catch { return []; } })();
 function saveMsPins() { localStorage.setItem('ms_pins', JSON.stringify(msPins.slice(0, 20))); }
 export function msPinSelection() {
   const ta = $('msEditor');
@@ -873,8 +890,8 @@ export function renderMsPins() {
 }
 
 // ---------- AIテキストをシーン末尾に追記（相談回答の反映など） ----------
-export function msAppendAiText(text) {
-  const sc = msScene();
+export function msAppendAiText(text, targetScene = null) {
+  const sc = targetScene || msScene();
   const t = (text || '').trim();
   if (!sc || !t) return false;
   sc.content = (sc.content || '').trimEnd() ? (sc.content || '').trimEnd() + '\n\n' + t : t;

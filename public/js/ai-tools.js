@@ -22,15 +22,21 @@ export async function runPipeline() {
   if (!current.messages.some(m => m.role === 'assistant')) {
     await appAlert('推敲対象のAI応答がありません'); return;
   }
+  const convId = current.id; // 途中で会話を切り替えられても別会話に指示を流さない
   for (const [name, text] of PIPELINE_STEPS) {
-    if (busy || !current) return;
+    if (busy || !current || current.id !== convId) return;
     await sendInstruction(`【パイプライン:${name}】${text}`);
   }
 }
 
 // ---------- N案並列生成 ----------
+let variantConvId = null; // 別案を生成した会話（モーダル表示中に会話を切り替えた場合の誤追加防止）
 function adoptVariant(text) {
   if (!current) return;
+  if (variantConvId && current.id !== variantConvId) {
+    appAlert('別案を生成した会話とは別の会話を表示中です。対象の会話に戻ってから採用してください');
+    return;
+  }
   const msgObj = { role: 'assistant', content: text };
   current.messages.push(msgObj);
   const el = addBotMsg(false);
@@ -51,6 +57,7 @@ export async function genVariants(n = 3) {
     if (m.role === 'user') break;
   }
   if (idx < 0) { appAlert('別案の対象となるAI応答がありません'); return; }
+  variantConvId = current.id;
   captureSnapshot('別案生成前'); // スプライス前に退避（キャンセル時も版履歴から復元可能）
   current.messages.splice(idx, 1);
   clearChat(); // DOMとデータを同期（残った古い応答ノードを除去）

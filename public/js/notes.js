@@ -3,6 +3,8 @@
 import { $ } from './dom.js';
 import { api, appAlert, appConfirm, esc, fmtDate } from './util.js';
 import { activateTab, registerTabOpener, showNotesView, showChatView } from './conversations.js';
+import { refreshCards } from './cards.js';
+import { refreshSources } from './sources.js';
 
 let notes = [];          // /api/notes の配列
 let currentNote = null;  // 編集中ノート
@@ -118,10 +120,10 @@ function renderNoteLinks() {
   const inEl = $('noteLinksIn');
   if (!box || !currentNote) { box?.classList.add('hidden'); return; }
   box.classList.remove('hidden');
-  const myName = currentNote.name;
-  // 出ていくリンク
+  // 出ていくリンク（編集中の最新テキストを使う。currentNote.contentは保存済みで遅れる）
+  const liveContent = $('noteContent')?.value ?? currentNote.content;
   outEl.innerHTML = '';
-  const outs = noteLinks(currentNote.content);
+  const outs = noteLinks(liveContent);
   if (!outs.length) outEl.innerHTML = '<span class="hint">なし</span>';
   for (const target of outs) {
     const b = document.createElement('button');
@@ -132,9 +134,10 @@ function renderNoteLinks() {
     b.onclick = () => { const n = noteByName(target); if (n) openNote(n.id); };
     outEl.appendChild(b);
   }
-  // 被リンク
+  // 被リンク（編集中の最新ノート名を使う）
+  const liveName = (($('noteName')?.value || currentNote.name) || '').trim();
   inEl.innerHTML = '';
-  const ins = notes.filter(n => n.id !== currentNote.id && noteLinks(n.content).includes(myName));
+  const ins = notes.filter(n => n.id !== currentNote.id && noteLinks(n.content).includes(liveName));
   if (!ins.length) inEl.innerHTML = '<span class="hint">なし</span>';
   for (const n of ins) {
     const b = document.createElement('button');
@@ -229,6 +232,7 @@ async function promoteToCard() {
       method: 'POST',
       body: JSON.stringify({ name: n.name, kind: 'term', content: body, tags: 'ノート由来' })
     });
+    await refreshCards(); // カード一覧・ドキュメント補完・グラフに即反映
     setStatus('カードに登録しました');
   } catch (e) { appAlert('カード化失敗: ' + e.message); }
 }
@@ -242,6 +246,7 @@ async function promoteToSource() {
       method: 'POST',
       body: JSON.stringify({ name: n.name, content: n.content || '' })
     });
+    await refreshSources();
     setStatus('ソースに登録しました');
   } catch (e) { appAlert('ソース登録失敗: ' + e.message); }
 }
@@ -396,6 +401,8 @@ function onSuggestKeydown(e) {
     sug.sel = (sug.sel + d + sug.items.length) % sug.items.length;
     renderSug(ta);
   } else if (e.key === 'Enter' || e.key === 'Tab') {
+    const it = sug.items[sug.sel];
+    if (it && it.disabled) { sug = null; sugEl().classList.add('hidden'); return; } // 無効候補なら改行等の通常動作を通す
     e.preventDefault();
     acceptSug(ta, sug.sel);
   } else if (e.key === 'Escape') {
@@ -406,9 +413,8 @@ function onSuggestKeydown(e) {
 }
 
 // タブオープナーはモジュール読み込み時に登録（restoreTabsより前に必要）
-// activateTab必須：これを呼ばないとactiveTabTypeがconvのまま残り、
-// アクティブ扱いの会話タブをクリックしても no-op になり画面から出られなくなる
-registerTabOpener('note', () => { activateTab('note', 'main'); showNotesView(); refreshNotes(); });
+// showNotesViewEntryに委譲：再起動後のタブ復元でも先頭ノート/空状態を正しく表示する
+registerTabOpener('note', () => showNotesViewEntry());
 
 export function showNotesViewEntry() {
   activateTab('note', 'main');
@@ -430,6 +436,7 @@ export function initNotes() {
   $('noteContent')?.addEventListener('input', () => {
     scheduleSave();
     renderNoteTags();
+    renderNoteLinks();
     updateSug($('noteContent'));
   });
   $('noteContent')?.addEventListener('keydown', onSuggestKeydown);
