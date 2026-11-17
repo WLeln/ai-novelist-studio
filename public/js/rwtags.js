@@ -5,7 +5,8 @@
 //   ZX[...]XX[...]                    → 複数タグを連続して一括実行（Ctrl+Shift+X）
 //   [ZX[...]XX[...]]                  → 角括弧で囲むと各結果を1つの文章に統合
 // タグは kind='rwtag' でサーバーDBに保存（バックアップ・タイムマシン対象）
-import { $, api, appAlert, appConfirm } from './util.js';
+import { $ } from './dom.js';
+import { api, appAlert, appConfirm } from './util.js';
 import { callApiOnce } from './context.js';
 import { styleSampleBlock } from './state.js';
 
