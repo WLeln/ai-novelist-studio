@@ -349,6 +349,8 @@
             <button id="btnDocCheck" class="btn-ghost btn-sm" title="カード設定と本文の矛盾をAIがチェック">整合性</button>
             <button id="btnDocLint" class="btn-ghost btn-sm" title="表現の繰り返し・単調さを機械的にチェック">表現</button>
             <button id="btnDocToc" class="btn-ghost btn-sm" title="見出しから目次を生成（クリックでジャンプ）">目次</button>
+            <button id="btnDocRewrite" class="btn-ghost btn-sm" title="リライトルール（AZ[本文] 等）を本文全体に一括適用">リライト</button>
+            <button id="btnDocRwTags" class="btn-ghost btn-sm" title="リライトルール（2文字コード→書き換え指示）の登録・管理">ルール</button>
             <button id="btnDocExport" class="btn-ghost btn-sm">出力</button>
             <button id="btnDocDelete" class="btn-ghost btn-sm">削除</button>
           </span>
@@ -779,6 +781,32 @@
         </div>
       </div>
       <button id="btnNewTpl" class="btn-ghost btn-sm"><svg class="icon"><use href="#i-plus"/></svg> 新しいテンプレート</button>
+    </div>
+  </div>
+</div>
+
+<!-- リライトルール管理モーダル -->
+<div id="rwTagModal" class="modal hidden">
+  <div class="modal-content" style="width:min(640px,94vw)">
+    <div class="modal-header">
+      <h2><svg class="icon"><use href="#i-sparkle"/></svg> リライトルール</h2>
+      <button class="modal-close" id="btnCloseRwTags"><svg class="icon"><use href="#i-close"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <p class="hint">ドキュメント内に <code>AZ[本文]</code> や <code>AZ[本文,200]</code>（カンマ+数字=目標文字数）と書くと、登録した指示でAIが書き換えます。<code>ZX[...]XX[...]</code> のように連続して書けて、<code>[ZX[...]XX[...]]</code> と角括弧で囲むと結果を1つの文章に統合します。実行は <b>Ctrl+Shift+X</b>。</p>
+      <div id="rwTagList"></div>
+      <div id="rwTagForm" class="card-form hidden">
+        <input type="hidden" id="rwId">
+        <input type="text" id="rwCode" placeholder="コード（英字2文字 例: AZ）" maxlength="2" style="text-transform:uppercase">
+        <input type="text" id="rwLabel" placeholder="名前（任意・例: 頭おかしい文体）">
+        <textarea id="rwInstruction" rows="4" placeholder="書き換え指示（例: この文章を頭がおかしいギャグ漫画風に書き換えて）"></textarea>
+        <div class="params-row">
+          <button id="btnSaveRwTag" class="btn-primary btn-sm">保存</button>
+          <button id="btnCancelRwTag" class="btn-ghost btn-sm">キャンセル</button>
+          <button id="btnDeleteRwTag" class="btn-ghost btn-sm hidden">削除</button>
+        </div>
+      </div>
+      <button id="btnNewRwTag" class="btn-ghost btn-sm"><svg class="icon"><use href="#i-plus"/></svg> 新しいルール</button>
     </div>
   </div>
 </div>

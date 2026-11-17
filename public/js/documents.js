@@ -5,6 +5,7 @@ import { allDocs, setAllDocs, allCards, styleSampleBlock, overusedWordBlock } fr
 import { activateTab, registerTabOpener, renderTabs, projectNamesAll, showDocView, closeTab, queueDraftSave, activeTabType } from './conversations.js';
 import { callApiOnce } from './context.js';
 import { runDocLint } from './lint.js';
+import { initRewriteTags, openRwTagManager, runDocRewrites } from './rwtags.js';
 
 let currentDoc = null;   // {id,title,project,content,updated,...}
 let editor = null;       // TipTap Editor
@@ -450,6 +451,9 @@ export function initDocEditor() {
   $('btnDocCheck') && ($('btnDocCheck').onclick = docConsistencyCheck);
   $('btnDocLint') && ($('btnDocLint').onclick = runDocLint);
   $('btnDocToc') && ($('btnDocToc').onclick = docToc);
+  initRewriteTags({ getEditor: () => editor, setStatus: updateDocStatus });
+  $('btnDocRewrite') && ($('btnDocRewrite').onclick = runDocRewrites);
+  $('btnDocRwTags') && ($('btnDocRwTags').onclick = openRwTagManager);
   // Ctrl/Cmd+S: 表示中ドキュメントを即時保存（デバウンス待ちを flush）
   document.addEventListener('keydown', (e) => {
     if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 's') return;

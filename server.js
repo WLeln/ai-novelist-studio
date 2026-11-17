@@ -107,7 +107,7 @@ function flushAllWrites() {
 function maxDocUpdated() {
   let m = 0;
   const stmt = db.prepare('SELECT MAX(updated) AS u FROM docs WHERE kind = ?');
-  for (const kind of ['conv', 'card', 'template', 'source', 'doc', 'manuscript', 'worldgraph', 'projectPreset', 'snapshot', 'note']) {
+  for (const kind of ['conv', 'card', 'template', 'source', 'doc', 'manuscript', 'worldgraph', 'projectPreset', 'snapshot', 'note', 'rwtag']) {
     const r = stmt.get(kind);
     if (r && r.u > m) m = r.u;
   }
@@ -229,6 +229,7 @@ let sources = loadStore('source');
 let documents = loadStore('doc');
 let projectPresets = loadStore('projectPreset');
 let notes = loadStore('note');
+let rwtags = loadStore('rwtag');
 // シーン単位のリビジョン履歴（kind='scenehist', id='main' → {sceneId:[{ts,content}]}）
 let sceneHist = loadDoc('scenehist', 'main', {});
 // 実際に 0.0.0.0 で外部公開中か（startListener で更新）
@@ -666,6 +667,55 @@ cardCRUD('cards', 'card', cards);
 cardCRUD('templates', 'template', templates);
 cardCRUD('notes', 'note', notes);
 
+// ---------- リライトルールタグ（ドキュメントの AZ[本文] 等をAIで書き換える指示） ----------
+const RW_CODE_RE = /^[A-Za-z]{2}$/;
+function rwtagOut(t) {
+  return { id: t.id, code: t.code, label: t.label || '', instruction: t.instruction, updated: t.updated };
+}
+app.get('/api/rwtags', (req, res) =>
+  res.json(Object.values(rwtags).map(rwtagOut).sort((a, b) => a.code.localeCompare(b.code))));
+app.post('/api/rwtags', (req, res) => {
+  const b = req.body || {};
+  const code = String(b.code || '').trim().toUpperCase();
+  if (!RW_CODE_RE.test(code)) return res.status(400).json({ error: 'コードは英字2文字で指定してください' });
+  if (Object.values(rwtags).some(t => t.code === code)) {
+    return res.status(400).json({ error: `コード ${code} は既に使われています` });
+  }
+  const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  rwtags[id] = {
+    id, code,
+    label: String(b.label || '').slice(0, 100),
+    instruction: String(b.instruction || '').slice(0, 8000),
+    created: Date.now(), updated: Date.now()
+  };
+  writeDoc('rwtag', id, rwtags[id]);
+  res.json(rwtagOut(rwtags[id]));
+});
+app.put('/api/rwtags/:id', (req, res) => {
+  const t = rwtags[req.params.id];
+  if (!t) return res.status(404).json({ error: 'not found' });
+  const b = req.body || {};
+  if (typeof b.code === 'string') {
+    const code = b.code.trim().toUpperCase();
+    if (!RW_CODE_RE.test(code)) return res.status(400).json({ error: 'コードは英字2文字で指定してください' });
+    if (Object.values(rwtags).some(x => x.code === code && x.id !== t.id)) {
+      return res.status(400).json({ error: `コード ${code} は既に使われています` });
+    }
+    t.code = code;
+  }
+  if (typeof b.label === 'string') t.label = b.label.slice(0, 100);
+  if (typeof b.instruction === 'string') t.instruction = b.instruction.slice(0, 8000);
+  t.updated = Date.now();
+  writeDoc('rwtag', t.id, t);
+  res.json(rwtagOut(t));
+});
+app.delete('/api/rwtags/:id', (req, res) => {
+  if (!rwtags[req.params.id]) return res.status(404).json({ error: 'not found' });
+  delete rwtags[req.params.id];
+  deleteDoc('rwtag', req.params.id);
+  res.json({ ok: true });
+});
+
 // ---------- シーン単位リビジョン履歴 ----------
 // 原稿保存のたびに本文が変わったシーンの「旧版」を記録する（最大20版/シーン・30万字まで）
 const SCENE_HIST_MAX_REVS = 20;
@@ -998,6 +1048,7 @@ function rebuildMemoryStores(rows) {
   documents = toObj('doc');
   projectPresets = toObj('projectPreset');
   notes = toObj('note');
+  rwtags = toObj('rwtag');
   const msRows = byKind['manuscript'] || [];
   const msMain = msRows.find(d => d.id === 'main');
   try { manuscript = msMain ? JSON.parse(msMain.data) : { title: '無題', chapters: [] }; }
