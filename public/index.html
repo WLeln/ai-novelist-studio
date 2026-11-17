@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>AI Novelist Studio</title>
-<link rel="stylesheet" href="/css/style.css?v=32">
+<link rel="stylesheet" href="/css/style.css?v=33">
 </head>
 <body>
 <script>document.documentElement.dataset.sidebar = localStorage.getItem('sidebar_collapsed') === '1' ? 'collapsed' : '';</script>
@@ -135,17 +135,22 @@
       <div class="topbar-actions">
         <div class="dropdown">
           <button class="btn-ghost" id="btnTopMenu">ツール <svg class="icon"><use href="#i-chevron-down"/></svg></button>
-          <div class="dropdown-menu down hidden" id="topMenu">
+          <div class="dropdown-menu down hidden" id="topMenu" style="min-width:230px;height:auto;max-height:70vh">
+            <div class="menu-group-label">会話</div>
             <button class="menu-item" id="btnChapter"><svg class="icon"><use href="#i-columns"/></svg> 章区切りを挿入</button>
-            <button class="menu-item" id="btnCompress"><svg class="icon"><use href="#i-refresh"/></svg> コンテキストを圧縮</button>
-            <button class="menu-item" id="btnCards2"><svg class="icon"><use href="#i-card"/></svg> この会話で使うカード</button>
             <button class="menu-item" id="btnScene"><svg class="icon"><use href="#i-columns"/></svg> シーン区切りを挿入</button>
             <button class="menu-item" id="btnParams"><svg class="icon"><use href="#i-gear"/></svg> この会話の設定</button>
             <button class="menu-item" id="btnOutline"><svg class="icon"><use href="#i-list"/></svg> 目次（章・シーン構成）</button>
-            <button class="menu-item" id="miStyleAnalyze"><svg class="icon"><use href="#i-sparkle"/></svg> 文体を分析（パラメータ抽出）</button>
-            <button class="menu-item qb" id="qbPin">最前列に固定</button>
-            <button class="menu-item" id="btnMacros">クイックマクロ（ホットキー）</button>
+            <button class="menu-item" id="btnCards2"><svg class="icon"><use href="#i-card"/></svg> この会話で使うカード</button>
+            <button class="menu-item" id="btnHistory"><svg class="icon"><use href="#i-refresh"/></svg> 版の履歴</button>
             <div class="menu-sep"></div>
+            <div class="menu-group-label">AI支援</div>
+            <button class="menu-item" id="btnCompress"><svg class="icon"><use href="#i-refresh"/></svg> コンテキストを圧縮</button>
+            <button class="menu-item" id="miStyleAnalyze"><svg class="icon"><use href="#i-sparkle"/></svg> 文体を分析（パラメータ抽出）</button>
+            <button class="menu-item" id="btnMacros">クイックマクロ（ホットキー）</button>
+            <button class="menu-item qb" id="qbPin">最前列に固定</button>
+            <div class="menu-sep"></div>
+            <div class="menu-group-label">作品データ</div>
             <div class="menu-item menu-static">
               エクスポート
               <select id="exportFormat">
@@ -160,7 +165,6 @@
             <button class="menu-item" id="miConsistency"><svg class="icon"><use href="#i-search"/></svg> 一貫性チェック</button>
             <button class="menu-item" id="miSearchReplace"><svg class="icon"><use href="#i-search"/></svg> 横断検索・置換</button>
             <button class="menu-item" id="miAskWork"><svg class="icon"><use href="#i-sparkle"/></svg> 作品に聞く（AI横断Q&A）</button>
-            <button class="menu-item" id="btnHistory"><svg class="icon"><use href="#i-refresh"/></svg> 版の履歴</button>
           </div>
         </div>
         <span id="charCount" class="hint" title="本文文字数 / 原稿用紙換算"></span>
@@ -323,15 +327,19 @@
           <button type="button" data-cmd="heading3" title="見出し3">H3</button>
           <button type="button" data-cmd="paragraph" title="本文">¶</button>
           <span class="doc-tb-sep"></span>
-          <button type="button" data-cmd="bulletList" title="箇条書き">•</button>
-          <button type="button" data-cmd="orderedList" title="番号付き">1.</button>
-          <button type="button" data-cmd="blockquote" title="引用">❞</button>
-          <button type="button" data-cmd="codeBlock" title="コードブロック">&lt;/&gt;</button>
-          <button type="button" data-cmd="horizontalRule" title="区切り線">―</button>
-          <span class="doc-tb-sep"></span>
+          <div class="dropdown">
+            <button type="button" id="btnDocFormat" title="段落・装飾メニュー">書式 ▾</button>
+            <div class="dropdown-menu down hidden" id="docFormatMenu" style="min-width:190px;height:auto;max-height:70vh;left:auto;right:0">
+              <button class="menu-item" type="button" data-cmd="bulletList">箇条書き</button>
+              <button class="menu-item" type="button" data-cmd="orderedList">番号付きリスト</button>
+              <button class="menu-item" type="button" data-cmd="blockquote">引用</button>
+              <button class="menu-item" type="button" data-cmd="codeBlock">コードブロック</button>
+              <button class="menu-item" type="button" data-cmd="horizontalRule">区切り線</button>
+              <div class="menu-sep"></div>
+              <button class="menu-item" type="button" data-cmd="unlink">リンク解除</button>
+            </div>
+          </div>
           <button type="button" data-cmd="link" title="リンク">リンク</button>
-          <button type="button" data-cmd="unlink" title="リンク解除">解除</button>
-          <span class="doc-tb-sep"></span>
           <button type="button" data-cmd="ruby" title="ルビ（ふりがな）を付ける">ルビ</button>
           <button type="button" data-cmd="emphasisDots" title="傍点（圏点）を付ける">傍点</button>
           <span class="doc-tb-sep"></span>
@@ -345,14 +353,21 @@
           <span id="docStatus" class="hint"></span>
           <span id="docReadability" class="ms-readability hidden" title=""></span>
           <span class="doc-meta-actions">
-            <button id="btnDocContinue" class="btn-ghost btn-sm" title="本文の末尾にAIが続きを書き足します（指示も入力できます）">AIに続きを書かせる</button>
-            <button id="btnDocCheck" class="btn-ghost btn-sm" title="カード設定と本文の矛盾をAIがチェック">整合性</button>
-            <button id="btnDocLint" class="btn-ghost btn-sm" title="表現の繰り返し・単調さを機械的にチェック">表現</button>
-            <button id="btnDocToc" class="btn-ghost btn-sm" title="見出しから目次を生成（クリックでジャンプ）">目次</button>
             <button id="btnDocRewrite" class="btn-ghost btn-sm" title="リライトルール（AZ[本文] 等）を本文全体に一括適用">リライト</button>
-            <button id="btnDocRwTags" class="btn-ghost btn-sm" title="リライトルール（2文字コード→書き換え指示）の登録・管理">ルール</button>
-            <button id="btnDocExport" class="btn-ghost btn-sm">出力</button>
-            <button id="btnDocDelete" class="btn-ghost btn-sm">削除</button>
+            <div class="dropdown">
+              <button class="btn-ghost btn-sm" id="btnDocTools" type="button">ツール <svg class="icon"><use href="#i-chevron-down"/></svg></button>
+              <div class="dropdown-menu down hidden" id="docToolsMenu" style="min-width:210px;height:auto;max-height:70vh;left:auto;right:0">
+                <button class="menu-item" id="btnDocContinue" type="button" title="本文の末尾にAIが続きを書き足します（指示も入力できます）">AIに続きを書かせる</button>
+                <button class="menu-item" id="btnDocCheck" type="button" title="カード設定と本文の矛盾をAIがチェック">整合性チェック</button>
+                <button class="menu-item" id="btnDocLint" type="button" title="表現の繰り返し・単調さを機械的にチェック">表現チェック</button>
+                <button class="menu-item" id="btnDocToc" type="button" title="見出しから目次を生成（クリックでジャンプ）">目次</button>
+                <div class="menu-sep"></div>
+                <button class="menu-item" id="btnDocRwTags" type="button" title="リライトルール（2文字コード→書き換え指示）の登録・管理">リライトルール…</button>
+                <button class="menu-item" id="btnDocExport" type="button">出力</button>
+                <div class="menu-sep"></div>
+                <button class="menu-item" id="btnDocDelete" type="button">削除</button>
+              </div>
+            </div>
           </span>
         </div>
         <div id="docEditor" class="doc-editor"></div>
@@ -445,21 +460,29 @@
           <button id="btnMsAddScene" class="btn-ghost btn-sm">＋シーン</button>
           <button id="btnMsDel" class="btn-ghost btn-sm">削除</button>
           <button id="btnMsDup" class="btn-ghost btn-sm" title="選択中のシーンを複製">複製</button>
-          <button id="btnMsDupCh" class="btn-ghost btn-sm" title="選択中の章をシーンごと複製">章複製</button>
-          <button id="btnMsForeshadow" class="btn-ghost btn-sm">伏線チェック</button>
           <button id="btnMsWrite" class="btn-ghost btn-sm">AI執筆</button>
           <button id="btnMsWriteChapter" class="btn-ghost btn-sm" title="この章の空シーンを順番にAIが執筆します（最大10シーン）">章をAI執筆</button>
-          <button id="btnMsAiParts" class="btn-ghost btn-sm">AI部分</button>
-          <button id="btnMsConsult" class="btn-ghost btn-sm" title="このシーンについてAIに相談（Q&Aはシーンに保存されます）">相談</button>
-          <button id="btnMsHist" class="btn-ghost btn-sm" title="このシーンの編集履歴（自動記録・過去版に復元可）">履歴</button>
-          <button id="btnMsChart" class="btn-ghost btn-sm">グラフ</button>
-          <button id="btnMsChChart" class="btn-ghost btn-sm" title="章ごとの文字数をグラフ表示">章別</button>
-          <button id="btnMsBoard" class="btn-ghost btn-sm">ボード</button>
-          <button id="btnMsFlow" class="btn-ghost btn-sm" title="指示をトークン数付きでキューに溜め、チャンク単位で連続生成して原稿に流し込みます">流れ生成</button>
-          <button id="btnMsVertical" class="btn-ghost btn-sm" title="原稿エディタを縦書き表示に切替">縦書</button>
-          <button id="btnMsToCard" class="btn-ghost btn-sm" title="選択した文章をカードに登録">選択→カード</button>
-          <button id="btnMsPin" class="btn-ghost btn-sm" title="選択した文章をピン留め（常時表示・クリックでコピー）">ピン</button>
-          <button id="btnMsInsPrev" class="btn-ghost btn-sm" title="前のシーンの末尾400字をカーソル位置に挿入">前話末尾</button>
+          <div class="dropdown">
+            <button id="btnMsTools" class="btn-ghost btn-sm" type="button">ツール <svg class="icon"><use href="#i-chevron-down"/></svg></button>
+            <div class="dropdown-menu down hidden" id="msToolsMenu" style="min-width:230px;height:auto;max-height:70vh;left:auto;right:0">
+              <button class="menu-item" id="btnMsConsult" type="button" title="このシーンについてAIに相談（Q&Aはシーンに保存されます）">相談（AI Q&A）</button>
+              <button class="menu-item" id="btnMsHist" type="button" title="このシーンの編集履歴（自動記録・過去版に復元可）">履歴</button>
+              <div class="menu-sep"></div>
+              <button class="menu-item" id="btnMsForeshadow" type="button">伏線チェック</button>
+              <button class="menu-item" id="btnMsAiParts" type="button">AI部分</button>
+              <div class="menu-sep"></div>
+              <button class="menu-item" id="btnMsChart" type="button">グラフ</button>
+              <button class="menu-item" id="btnMsChChart" type="button" title="章ごとの文字数をグラフ表示">章別</button>
+              <button class="menu-item" id="btnMsBoard" type="button">ボード</button>
+              <button class="menu-item" id="btnMsFlow" type="button" title="指示をトークン数付きでキューに溜め、チャンク単位で連続生成して原稿に流し込みます">流れ生成</button>
+              <div class="menu-sep"></div>
+              <button class="menu-item" id="btnMsDupCh" type="button" title="選択中の章をシーンごと複製">章複製</button>
+              <button class="menu-item" id="btnMsToCard" type="button" title="選択した文章をカードに登録">選択→カード</button>
+              <button class="menu-item" id="btnMsPin" type="button" title="選択した文章をピン留め（常時表示・クリックでコピー）">ピン</button>
+              <button class="menu-item" id="btnMsInsPrev" type="button" title="前のシーンの末尾400字をカーソル位置に挿入">前話末尾</button>
+              <button class="menu-item" id="btnMsVertical" type="button" title="原稿エディタを縦書き表示に切替">縦書</button>
+            </div>
+          </div>
           <span class="dropdown">
             <button id="btnMsFormat" class="btn-ghost btn-sm" type="button">整形 ▾</button>
             <div class="dropdown-menu down hidden" id="msFormatMenu" style="min-width:210px;height:auto">
