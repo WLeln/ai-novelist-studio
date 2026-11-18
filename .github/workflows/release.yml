@@ -21,6 +21,21 @@ jobs:
           node-version: 24
           cache: npm
 
+      # MeCab+UniDic (約200MB) は稀にしか変わらないのでキャッシュ
+      - name: Cache MeCab + UniDic tools
+        uses: actions/cache@v4
+        with:
+          path: tools
+          key: tools-mecab-unidic-v1
+
+      # electron-builder のダウンロードバイナリ(NSIS等)もキャッシュ
+      - name: Cache electron-builder binaries
+        uses: actions/cache@v4
+        with:
+          path: .eb-cache
+          key: electron-builder-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: electron-builder-${{ runner.os }}-
+
       - name: Install dependencies
         run: npm ci
 
@@ -42,6 +57,7 @@ jobs:
           ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
           ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+          ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.eb-cache
         shell: bash
         run: |
           set -o pipefail
