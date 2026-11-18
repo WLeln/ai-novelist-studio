@@ -4,6 +4,8 @@
 //   ZX[死神を殺しまくる,200]          → カンマ+数字で目標文字数を指定
 //   ZX[...]XX[...]                    → 複数タグを連続して一括実行（Ctrl+Shift+X）
 //   [ZX[...]XX[...]]                  → 角括弧で囲むと各結果を1つの文章に統合
+//   AAA[私は人間,これに続く内容を筆記して,300] → 組み込み：対象テキストに指示を適用（第1引数=対象・第2引数=指示・末尾数字=文字数）
+//   BBB[人間が殺しあう描写を筆記して,180]     → 組み込み：指示だけで文章を生成（第1引数=指示・末尾数字=文字数）
 // タグは kind='rwtag' でサーバーDBに保存（バックアップ・タイムマシン対象）
 import { $ } from './dom.js';
 import { api, appAlert, appConfirm } from './util.js';
@@ -25,6 +27,9 @@ export async function refreshRwTags() {
 
 // ---------- 構文パーサ（プレーンテキスト走査） ----------
 function codeAt(text, i) {
+  // 組み込み3文字タグ（AAA=対象に指示適用 / BBB=指示で生成）
+  const c3 = text.slice(i, i + 3).toUpperCase();
+  if ((c3 === 'AAA' || c3 === 'BBB') && text[i + 3] === '[') return c3;
   if (text[i + 2] !== '[') return null;
   const c = text.slice(i, i + 2);
   if (!/^[A-Za-z]{2}$/.test(c)) return null;
@@ -44,7 +49,7 @@ function findClose(text, open) {
 function parseNode(text, i) {
   const code = codeAt(text, i);
   if (code) {
-    const open = i + 2;
+    const open = i + code.length;
     const close = findClose(text, open);
     if (close < 0) return null;
     let inner = text.slice(open + 1, close);
@@ -132,6 +137,35 @@ async function rewriteExpr(node, fullText) {
   ]);
   return { text: cleanOut(text), len: node.len };
 }
+// 組み込みタグ: AAA[対象,指示,長さ] = 対象に指示を適用 / BBB[指示,長さ] = 指示で生成
+async function genExpr(node, fullText) {
+  const inner = (node.inner || '').trim();
+  let target = '', instr = '';
+  if (node.code === 'AAA') {
+    const ci = inner.indexOf(',');
+    if (ci >= 0) { target = inner.slice(0, ci).trim(); instr = inner.slice(ci + 1).trim(); }
+    else { target = inner; instr = 'この文章に続く内容を自然に筆記してください'; }
+  } else {
+    instr = inner;
+  }
+  if (!instr) return { text: target || inner, len: node.len };
+  const before = fullText.slice(Math.max(0, node.start - 250), node.start).trim();
+  const after = fullText.slice(node.end, node.end + 250).trim();
+  const ctx = [before && `前: …${before}`, after && `後: ${after}…`].filter(Boolean).join('\n');
+  const { text } = await callApiOnce([
+    { role: 'system', content: node.code === 'AAA'
+      ? 'あなたは小説家です。【対象テキスト】に【指示】を適用し、対象テキストを含む完成形の本文のみを出力してください。説明・前置き・注意書き・引用符・Markdown装飾は一切付けないでください。'
+      : 'あなたは小説家です。【指示】に従って文章を執筆し、本文のみを出力してください。説明・前置き・注意書き・引用符・Markdown装飾は一切付けないでください。' },
+    { role: 'user', content: [
+      target ? '【対象テキスト】\n' + target : '',
+      '【指示】\n' + instr,
+      ctx ? '【前後の文脈（参考・出力には含めない）】\n' + ctx : '',
+      node.len ? `【文字数】約${node.len}字で生成してください` : '',
+      styleSampleBlock() || ''
+    ].filter(Boolean).join('\n\n') }
+  ]);
+  return { text: cleanOut(text) || target || inner, len: node.len };
+}
 async function mergeParts(parts, totalLen) {
   if (parts.length === 1) return parts[0];
   const { text } = await callApiOnce([
@@ -142,7 +176,10 @@ async function mergeParts(parts, totalLen) {
   return cleanOut(text);
 }
 async function execNode(node, fullText) {
-  if (node.type === 'expr') return rewriteExpr(node, fullText);
+  if (node.type === 'expr') {
+    if (node.code === 'AAA' || node.code === 'BBB') return genExpr(node, fullText);
+    return rewriteExpr(node, fullText);
+  }
   const parts = [];
   let totalLen = 0;
   for (const ch of node.items) {
@@ -178,11 +215,11 @@ export async function runDocRewrites() {
   running = true;
   try {
     try { await refreshRwTags(); } catch {} // 取得失敗時はキャッシュで続行
-    if (!rwTags.length) {
-      setStatusFn?.('リライトルールが未登録です（「ルール」から登録）');
+    const idx = buildIndex(editor);
+    if (!rwTags.length && !/(?:AAA|BBB)\[/i.test(idx.text)) {
+      setStatusFn?.('リライトルールが未登録です（「ルール」から登録 / AAA・BBBタグは登録不要）');
       return;
     }
-    const idx = buildIndex(editor);
     const docBefore = editor.state.doc; // AI実行中に本文が編集されたら位置がずれるので中止判定用
     const nodes = findJobs(idx.text);
     if (!nodes.length) {

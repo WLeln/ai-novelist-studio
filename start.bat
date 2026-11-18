@@ -32,8 +32,24 @@ if errorlevel 1 (
 )
 
 :run
+set "NODE_EXE="
+if exist "C:\Program Files\nodejs\node.exe" (
+  "C:\Program Files\nodejs\node.exe" -e "require('node:sqlite')" >nul 2>nul
+  if not errorlevel 1 set "NODE_EXE=C:\Program Files\nodejs\node.exe"
+)
+if not defined NODE_EXE (
+  node -e "require('node:sqlite')" >nul 2>nul
+  if not errorlevel 1 set "NODE_EXE=node"
+)
+if not defined NODE_EXE (
+  echo [ERROR] Node.js 22.5 or later is required for node:sqlite support.
+  echo Install the latest LTS from https://nodejs.org and run start.bat again.
+  pause
+  exit /b 1
+)
+
 echo AI Novelist Studio ‚ð‹N“®‚µ‚Ü‚·...
-start "" http://localhost:3737
-node server.js
+set "OPEN_BROWSER=1"
+if "%NODE_EXE%"=="node" (node server.js) else ("%NODE_EXE%" server.js)
 popd
 pause

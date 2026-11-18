@@ -348,7 +348,8 @@ function bindUI() {
   $('qbMood').value = fun.mood;
   $('qbMood').onchange = onMoodChange;
   $('qbMoodUp').onclick = moodUp;
-  $('qbTheme').onclick = cycleTheme;
+  const qbThemeBtn = $('qbTheme');
+  if (qbThemeBtn) qbThemeBtn.onclick = cycleTheme;
   $('btnPresetSave').onclick = savePreset;
   renderPresetMenu();
   syncPresetState();
@@ -362,7 +363,13 @@ function bindUI() {
       e.stopPropagation();
       const willOpen = menu.classList.contains('hidden');
       document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.add('hidden'));
-      if (willOpen) menu.classList.remove('hidden');
+      if (willOpen) {
+        menu.classList.remove('hidden');
+        // 画面右端からはみ出す場合はメニュー右端をボタンに揃える
+        menu.style.left = ''; menu.style.right = '';
+        const r = menu.getBoundingClientRect();
+        if (r.right > window.innerWidth - 8) { menu.style.left = 'auto'; menu.style.right = '0'; }
+      }
     });
     menu.addEventListener('click', e => {
       if (e.target.closest('.menu-item') && !e.target.closest('select')) menu.classList.add('hidden');

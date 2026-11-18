@@ -8,6 +8,8 @@ import { runDocLint } from './lint.js';
 import { initRewriteTags, openRwTagManager, runDocRewrites } from './rwtags.js';
 
 let currentDoc = null;   // {id,title,project,content,updated,...}
+let flowItems = [];
+const FLOW_KEY = 'doc_flow_panel';
 let editor = null;       // TipTap Editor
 let loading = false;     // setContent中は保存を発火させない
 let saveTimer = null;
@@ -94,6 +96,8 @@ export async function openDocument(id) {
   }
   if (seq !== openSeq) return; // より新しいopenに追い越された
   currentDoc = doc;
+  flowItems = Array.isArray(doc.flow) ? doc.flow.slice() : [];
+  renderFlowMemo();
   showDocView();
   document.body.classList.remove('sidebar-open');
   convTitleEl.textContent = doc.title || '無題';
@@ -137,6 +141,54 @@ export async function deleteCurrentDocument() {
   currentDoc = null;
   closeTab({ type: 'doc', id });
   await refreshDocuments();
+}
+
+// ---------- 流れメモ（右パネル：順序付きメモ） ----------
+function renderFlowMemo() {
+  const list = $('docFlowList');
+  if (!list) return;
+  list.innerHTML = '';
+  flowItems.forEach((text, i) => {
+    if (i > 0) {
+      const a = document.createElement('div');
+      a.className = 'flow-arrow';
+      a.textContent = '↓';
+      list.appendChild(a);
+    }
+    const row = document.createElement('div');
+    row.className = 'flow-step';
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.value = text || '';
+    inp.placeholder = 'メモ…';
+    inp.addEventListener('input', () => {
+      flowItems[i] = inp.value;
+      if (currentDoc) scheduleDocSave();
+    });
+    row.appendChild(inp);
+    const ops = document.createElement('div');
+    ops.className = 'flow-ops';
+    const mk = (label, title, fn) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.textContent = label; b.title = title;
+      b.addEventListener('mousedown', e => e.preventDefault());
+      b.addEventListener('click', fn);
+      ops.appendChild(b);
+    };
+    mk('↑', '上へ', () => { if (i > 0) { [flowItems[i-1], flowItems[i]] = [flowItems[i], flowItems[i-1]]; renderFlowMemo(); scheduleDocSave(); } });
+    mk('↓', '下へ', () => { if (i < flowItems.length - 1) { [flowItems[i+1], flowItems[i]] = [flowItems[i], flowItems[i+1]]; renderFlowMemo(); scheduleDocSave(); } });
+    mk('×', '削除', () => { flowItems.splice(i, 1); renderFlowMemo(); scheduleDocSave(); });
+    row.appendChild(ops);
+    list.appendChild(row);
+  });
+}
+function toggleFlowPanel(force) {
+  const p = $('docFlowPanel');
+  if (!p) return;
+  const show = force !== undefined ? force : p.classList.contains('hidden');
+  p.classList.toggle('hidden', !show);
+  localStorage.setItem(FLOW_KEY, show ? '1' : '0');
+  $('btnDocFlow')?.classList.toggle('active', show);
 }
 
 // ---------- TipTap エディタ ----------
@@ -202,7 +254,8 @@ async function saveDocNow() {
   const body = {
     title: ($('docTitle').value || '').trim() || '無題',
     project: $('docProject').value === '__new' ? '' : $('docProject').value,
-    content: editor.getHTML()
+    content: editor.getHTML(),
+    flow: flowItems
   };
   try {
     const d = await api('/api/documents/' + docId, { method: 'PUT', body: JSON.stringify(body) });
@@ -454,6 +507,23 @@ export function initDocEditor() {
   initRewriteTags({ getEditor: () => editor, setStatus: updateDocStatus });
   $('btnDocRewrite') && ($('btnDocRewrite').onclick = runDocRewrites);
   $('btnDocRwTags') && ($('btnDocRwTags').onclick = openRwTagManager);
+  $('btnDocFlow') && ($('btnDocFlow').onclick = () => toggleFlowPanel());
+  $('btnFlowClose') && ($('btnFlowClose').onclick = () => toggleFlowPanel(false));
+  $('btnFlowAdd') && ($('btnFlowAdd').onclick = () => {
+    flowItems.push('');
+    renderFlowMemo();
+    const inputs = document.querySelectorAll('#docFlowList input');
+    inputs[inputs.length - 1]?.focus();
+    if (currentDoc) scheduleDocSave();
+  });
+  {
+    const fp = $('docFlowPanel');
+    if (fp) {
+      const open = localStorage.getItem(FLOW_KEY) === '1';
+      fp.classList.toggle('hidden', !open);
+      $('btnDocFlow')?.classList.toggle('active', open);
+    }
+  }
   // Ctrl/Cmd+S: 表示中ドキュメントを即時保存（デバウンス待ちを flush）
   document.addEventListener('keydown', (e) => {
     if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 's') return;

@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>AI Novelist Studio</title>
-<link rel="stylesheet" href="/css/style.css?v=33">
+<link rel="stylesheet" href="/css/style.css?v=36">
 </head>
 <body>
 <script>document.documentElement.dataset.sidebar = localStorage.getItem('sidebar_collapsed') === '1' ? 'collapsed' : '';</script>
@@ -135,7 +135,7 @@
       <div class="topbar-actions">
         <div class="dropdown">
           <button class="btn-ghost" id="btnTopMenu">ツール <svg class="icon"><use href="#i-chevron-down"/></svg></button>
-          <div class="dropdown-menu down hidden" id="topMenu" style="min-width:230px;height:auto;max-height:70vh">
+          <div class="dropdown-menu down hidden" id="topMenu" style="min-width:230px;height:auto;max-height:40vh">
             <div class="menu-group-label">会話</div>
             <button class="menu-item" id="btnChapter"><svg class="icon"><use href="#i-columns"/></svg> 章区切りを挿入</button>
             <button class="menu-item" id="btnScene"><svg class="icon"><use href="#i-columns"/></svg> シーン区切りを挿入</button>
@@ -273,7 +273,6 @@
             <button class="menu-item qb" id="qbVoice">音声入力</button>
             <button class="menu-item qb" id="qbTimer">執筆タイマー <span id="timerDisplay" class="hint"></span></button>
             <button class="menu-item qb" id="qbBgm">環境音（雨音）</button>
-            <button class="menu-item qb" id="qbTheme">テーマ切替</button>
             <button class="menu-item qb" id="qbWritingMode">執筆モード（集中表示）</button>
             <button class="menu-item qb" id="qbLog">執筆ログ</button>
             <button class="menu-item qb" id="qbClearDNA">文体DNAを解除</button>
@@ -329,7 +328,7 @@
           <span class="doc-tb-sep"></span>
           <div class="dropdown">
             <button type="button" id="btnDocFormat" title="段落・装飾メニュー">書式 ▾</button>
-            <div class="dropdown-menu down hidden" id="docFormatMenu" style="min-width:190px;height:auto;max-height:70vh;left:auto;right:0">
+            <div class="dropdown-menu down hidden" id="docFormatMenu" style="min-width:190px;height:auto;max-height:40vh;left:auto;right:0">
               <button class="menu-item" type="button" data-cmd="bulletList">箇条書き</button>
               <button class="menu-item" type="button" data-cmd="orderedList">番号付きリスト</button>
               <button class="menu-item" type="button" data-cmd="blockquote">引用</button>
@@ -353,10 +352,11 @@
           <span id="docStatus" class="hint"></span>
           <span id="docReadability" class="ms-readability hidden" title=""></span>
           <span class="doc-meta-actions">
+            <button id="btnDocFlow" class="btn-ghost btn-sm" type="button" title="右側に流れメモ（順序付きの箇条書き）を表示">流れ</button>
             <button id="btnDocRewrite" class="btn-ghost btn-sm" title="リライトルール（AZ[本文] 等）を本文全体に一括適用">リライト</button>
             <div class="dropdown">
               <button class="btn-ghost btn-sm" id="btnDocTools" type="button">ツール <svg class="icon"><use href="#i-chevron-down"/></svg></button>
-              <div class="dropdown-menu down hidden" id="docToolsMenu" style="min-width:210px;height:auto;max-height:70vh;left:auto;right:0">
+              <div class="dropdown-menu down hidden" id="docToolsMenu" style="min-width:210px;height:auto;max-height:40vh;left:auto;right:0">
                 <button class="menu-item" id="btnDocContinue" type="button" title="本文の末尾にAIが続きを書き足します（指示も入力できます）">AIに続きを書かせる</button>
                 <button class="menu-item" id="btnDocCheck" type="button" title="カード設定と本文の矛盾をAIがチェック">整合性チェック</button>
                 <button class="menu-item" id="btnDocLint" type="button" title="表現の繰り返し・単調さを機械的にチェック">表現チェック</button>
@@ -370,7 +370,17 @@
             </div>
           </span>
         </div>
-        <div id="docEditor" class="doc-editor"></div>
+        <div id="docBody">
+          <div id="docEditor" class="doc-editor"></div>
+          <aside id="docFlowPanel" class="hidden">
+            <div class="flow-head">
+              <span>流れメモ</span>
+              <button id="btnFlowClose" class="modal-close" type="button" title="閉じる"><svg class="icon"><use href="#i-close"/></svg></button>
+            </div>
+            <div id="docFlowList" class="flow-list"></div>
+            <button id="btnFlowAdd" class="btn-ghost btn-sm" type="button">＋ 追加</button>
+          </aside>
+        </div>
       </div>
 
       <!-- 物語グラフペイン（作品全体の関連可視化） -->
@@ -464,7 +474,7 @@
           <button id="btnMsWriteChapter" class="btn-ghost btn-sm" title="この章の空シーンを順番にAIが執筆します（最大10シーン）">章をAI執筆</button>
           <div class="dropdown">
             <button id="btnMsTools" class="btn-ghost btn-sm" type="button">ツール <svg class="icon"><use href="#i-chevron-down"/></svg></button>
-            <div class="dropdown-menu down hidden" id="msToolsMenu" style="min-width:230px;height:auto;max-height:70vh;left:auto;right:0">
+            <div class="dropdown-menu down hidden" id="msToolsMenu" style="min-width:230px;height:auto;max-height:40vh;left:auto;right:0">
               <button class="menu-item" id="btnMsConsult" type="button" title="このシーンについてAIに相談（Q&Aはシーンに保存されます）">相談（AI Q&A）</button>
               <button class="menu-item" id="btnMsHist" type="button" title="このシーンの編集履歴（自動記録・過去版に復元可）">履歴</button>
               <div class="menu-sep"></div>
@@ -485,7 +495,7 @@
           </div>
           <span class="dropdown">
             <button id="btnMsFormat" class="btn-ghost btn-sm" type="button">整形 ▾</button>
-            <div class="dropdown-menu down hidden" id="msFormatMenu" style="min-width:210px;height:auto">
+            <div class="dropdown-menu down hidden" id="msFormatMenu" style="min-width:210px;height:auto;max-height:40vh;left:auto;right:0">
               <button class="menu-item" data-fmt="indent" type="button">字下げ：行頭に全角スペース</button>
               <button class="menu-item" data-fmt="unindent" type="button">行頭の空白をすべて削除</button>
               <button class="menu-item" data-fmt="blank" type="button">連続する空行を1つに</button>
@@ -816,7 +826,7 @@
       <button class="modal-close" id="btnCloseRwTags"><svg class="icon"><use href="#i-close"/></svg></button>
     </div>
     <div class="modal-body">
-      <p class="hint">ドキュメント内に <code>AZ[本文]</code> や <code>AZ[本文,200]</code>（カンマ+数字=目標文字数）と書くと、登録した指示でAIが書き換えます。<code>ZX[...]XX[...]</code> のように連続して書けて、<code>[ZX[...]XX[...]]</code> と角括弧で囲むと結果を1つの文章に統合します。実行は <b>Ctrl+Shift+X</b>。</p>
+      <p class="hint">ドキュメント内に <code>AZ[本文]</code> や <code>AZ[本文,200]</code>（カンマ+数字=目標文字数）と書くと、登録した指示でAIが書き換えます。<code>ZX[...]XX[...]</code> のように連続して書けて、<code>[ZX[...]XX[...]]</code> と角括弧で囲むと結果を1つの文章に統合します。実行は <b>Ctrl+Shift+X</b>。<br>登録不要の組み込みタグ：<code>AAA[対象,指示,300]</code>（対象に指示を適用）と <code>BBB[指示,180]</code>（指示で生成）も使えます。</p>
       <div id="rwTagList"></div>
       <div id="rwTagForm" class="card-form hidden">
         <input type="hidden" id="rwId">
@@ -1135,6 +1145,6 @@
 <script src="/js/editor.bundle.js?v=5"></script>
 <script src="/js/marked.min.js?v=22"></script>
 <script src="/js/purify.min.js?v=22"></script>
-<script type="module" src="/js/app.js?v=38"></script>
+<script type="module" src="/js/app.js?v=39"></script>
 </body>
 </html>

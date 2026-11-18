@@ -97,16 +97,14 @@ export function syncFunButtons() {
 
 // ---------- テーマ ----------
 export function cycleTheme() {
-  const order = ['auto', 'light', 'dark'];
-  fun.theme = order[(order.indexOf(fun.theme) + 1) % order.length];
-  localStorage.setItem('ui_theme', fun.theme);
+  fun.theme = 'light';
+  localStorage.setItem('ui_theme', 'light');
   applyTheme();
 }
 export function applyTheme() {
-  const el = document.documentElement;
-  if (fun.theme === 'auto') delete el.dataset.theme;
-  else el.dataset.theme = fun.theme;
-  $('qbTheme').textContent = 'テーマ:' + { auto: '自動', light: 'ライト', dark: 'ダーク' }[fun.theme];
+  document.documentElement.dataset.theme = 'light';
+  const qb = $('qbTheme');
+  if (qb) qb.textContent = 'テーマ:ライト';
 }
 
 // ---------- 機嫌 ----------

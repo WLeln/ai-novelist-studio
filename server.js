@@ -955,6 +955,7 @@ app.put('/api/documents/:id', (req, res) => {
   if (typeof b.title === 'string') d.title = b.title.slice(0, 200);
   if (typeof b.project === 'string') d.project = b.project.slice(0, 100);
   if (typeof b.content === 'string') d.content = b.content.slice(0, 2000000);
+  if (Array.isArray(b.flow)) d.flow = b.flow.slice(0, 300).map(s => String(s ?? '').slice(0, 1000));
   d.updated = Date.now();
   writeDoc('doc', req.params.id, d);
   res.json(d);
@@ -1354,16 +1355,28 @@ function startListener() {
   if (wantPublic && !ACCESS_TOKEN) {
     console.warn('警告: ACCESS_TOKEN が未設定のため外部公開を無効化しました（127.0.0.1 のみで待受）');
   }
+  let browserOpened = false;
+  function openBrowser() {
+    if (browserOpened || !process.env.OPEN_BROWSER) return;
+    browserOpened = true;
+    const url = `http://localhost:${PORT}`;
+    const cmd = process.platform === 'win32' ? `start "" "${url}"`
+      : process.platform === 'darwin' ? `open "${url}"`
+      : `xdg-open "${url}"`;
+    try { require('child_process').exec(cmd); } catch {}
+  }
   server = app.listen(PORT, host, () => {
     if (host === '0.0.0.0') {
       console.log(`AI Novelist Studio: http://localhost:${PORT}（LAN公開中: ${getLanUrl() || 'IP取得失敗'}）`);
     } else {
       console.log(`AI Novelist Studio 起動: http://localhost:${PORT}（このPCのみ）`);
     }
+    openBrowser();
   });
   server.on('error', (e) => {
     if (e.code === 'EADDRINUSE') {
       console.log(`ポート ${PORT} は使用中です（既に起動済みの可能性）`);
+      openBrowser(); // 既存インスタンスが応答しているはずなのでブラウザだけ開く
     } else {
       console.error(e);
       process.exit(1);
