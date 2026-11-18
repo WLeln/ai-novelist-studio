@@ -5,7 +5,7 @@ import { allDocs, setAllDocs, allCards, styleSampleBlock, overusedWordBlock } fr
 import { activateTab, registerTabOpener, renderTabs, projectNamesAll, showDocView, closeTab, queueDraftSave, activeTabType } from './conversations.js';
 import { callApiOnce } from './context.js';
 import { runDocLint } from './lint.js';
-import { initRewriteTags, openRwTagManager, runDocRewrites } from './rwtags.js';
+import { initRewriteTags, openRwTagManager, runDocRewrites, tagCodeTail, isRwTagCode } from './rwtags.js';
 
 let currentDoc = null;   // {id,title,project,content,updated,...}
 let flowItems = [];
@@ -197,6 +197,9 @@ function ensureEditor() {
   editor = window.DocEditor.create($('docEditor'), {
     placeholder: 'ここに本文を書きます…（カード名は自動補完・Tabで確定）',
     getNames: () => allCards.map(c => c.name).filter(Boolean),
+    tagTail: (s) => tagCodeTail(s),
+    isTagCode: (c) => isRwTagCode(c),
+    canPair: () => !loading,
     onSuggest: (name, rest) => {
       const el = $('docSuggest');
       if (!el) return;

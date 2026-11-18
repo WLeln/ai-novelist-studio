@@ -1,6 +1,6 @@
 // リッチテキストエディタ（TipTap）のエントリ。esbuildで public/js/editor.bundle.js にバンドルする
 import { Editor, Extension, Mark } from '@tiptap/core';
-import { Plugin, PluginKey } from '@tiptap/pm/state';
+import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
@@ -45,14 +45,63 @@ function makeGhostWidget(text) {
   return span;
 }
 
+// カーソルが「CODE[]」または空の「CODE[]」の中にある時、その削除範囲を返す
+function emptyTagRange(state, isTagCode) {
+  const { $from } = state.selection;
+  if (!$from.parent.isTextblock) return null;
+  const off = $from.parentOffset;
+  const before = $from.parent.textBetween(0, off, ' ', ' ');
+  const nextCh = off < $from.parent.content.size ? $from.parent.textBetween(off, off + 1, ' ', ' ') : '';
+  const ok = (code, start) => {
+    if (!isTagCode(code.toUpperCase())) return false;
+    const prev = start > 0 ? before[start - 1] : '';
+    return !/[A-Za-z0-9]/.test(prev);
+  };
+  // カーソルが ']' の直後: 末尾が CODE[]
+  let m = before.match(/([A-Za-z]{2,3})\[\]$/);
+  if (m && ok(m[1], before.length - m[0].length)) {
+    return { from: $from.pos - 2, to: $from.pos };
+  }
+  // カーソルが空の [] の中: 末尾が CODE[ で直後が ']'
+  m = before.match(/([A-Za-z]{2,3})\[$/);
+  if (m && nextCh === ']' && ok(m[1], before.length - m[0].length)) {
+    return { from: $from.pos - 1, to: $from.pos + 1 };
+  }
+  return null;
+}
+
 function WriterAssist(opts = {}) {
   return Extension.create({
     name: 'writerAssist',
     addOptions() {
-      return { getNames: () => [], onSuggest: null, ...opts };
+      return { getNames: () => [], onSuggest: null, tagTail: null, isTagCode: null, canPair: null, ...opts };
     },
     addProseMirrorPlugins() {
       const o = this.options;
+      let pairDirty = false, composing = false, pairTimer = null;
+      // タグコード末尾なら [] を挿入（IME変換の確定を待つため遅延実行）
+      const applyTagPair = (view) => {
+        if (typeof o.tagTail !== 'function') return;
+        if (typeof o.canPair === 'function' && !o.canPair()) return;
+        if (composing) { scheduleTagPair(view); return; } // 変換確定を待ってリトライ
+        const { state } = view;
+        const { $from, empty } = state.selection;
+        if (!empty || !$from.parent.isTextblock) return;
+        const start = Math.max($from.start(), $from.pos - 40);
+        const before = state.doc.textBetween(start, $from.pos, ' ', ' ');
+        if (!o.tagTail(before)) return;
+        if (before.split('[').length > before.split(']').length) return; // ブラケット内は再ペアしない
+        const pos = $from.pos;
+        const next = $from.parent.textBetween($from.parentOffset, Math.min($from.parentOffset + 1, $from.parent.content.size), ' ', ' ');
+        if (next.startsWith('[')) return;
+        const tr = state.tr.insertText('[]', pos);
+        tr.setSelection(TextSelection.create(tr.doc, pos + 1));
+        view.dispatch(tr);
+      };
+      const scheduleTagPair = (view) => {
+        if (pairTimer) clearTimeout(pairTimer);
+        pairTimer = setTimeout(() => { pairTimer = null; applyTagPair(view); }, 60);
+      };
       return [new Plugin({
         key: AssistKey,
         state: {
@@ -66,9 +115,42 @@ function WriterAssist(opts = {}) {
             return DecorationSet.create(newState.doc, decos);
           }
         },
+        appendTransaction(trs) {
+          // 小さな文字入力を検知してフラグを立てるだけ。実際の [] 挿入は
+          // view.update → setTimeout で行い、IME変換確定とのDOM競合を避ける
+          pairDirty = false;
+          if (typeof o.tagTail === 'function') {
+            for (const tr of trs) {
+              if (!tr.docChanged) continue;
+              // 末尾ステップだけでなく全ステップを走査（IME確定は複数ステップになることがある）
+              const hit = tr.steps.some(st => {
+                if (!st.slice || !st.slice.content) return false;
+                if (typeof st.from === 'number' && st.to - st.from > 10) return false; // 大きな範囲置換（setContent等）は除外
+                const t = st.slice.content.textBetween(0, st.slice.content.size, '', '');
+                return t.length > 0 && t.length <= 3;
+              });
+              // トランザクション発生時点でローディング中（setContent等）ならペア対象外
+              if (hit && (typeof o.canPair !== 'function' || o.canPair())) { pairDirty = true; break; }
+            }
+          }
+          return null;
+        },
         props: {
           decorations(state) { return AssistKey.getState(state); },
+          handleDOMEvents: {
+            compositionstart() { composing = true; },
+            compositionend() { composing = false; }
+          },
           handleKeyDown(view, event) {
+            // Backspace: 空の CODE[] をタグごと一括削除
+            if (event.key === 'Backspace' && typeof o.isTagCode === 'function' && view.state.selection.empty) {
+              const r = emptyTagRange(view.state, o.isTagCode);
+              if (r) {
+                event.preventDefault();
+                view.dispatch(view.state.tr.delete(r.from, r.to).scrollIntoView());
+                return true;
+              }
+            }
             if (event.key !== 'Tab') return false;
             if (!view.state.selection.empty) return false; // 範囲選択中は通常のTabに任せる
             const sug = computeSuggestion(view.state, o.getNames);
@@ -93,8 +175,13 @@ function WriterAssist(opts = {}) {
             // undo/redo・ツールバー操作・setContent等でもサジェスト表示を更新
             update(view, prevState) {
               if (view.state.doc !== prevState.doc || view.state.selection !== prevState.selection) notify();
+              if (pairDirty) { pairDirty = false; scheduleTagPair(view); }
             },
-            destroy() { editorView.dom.removeEventListener('keyup', notify); editorView.dom.removeEventListener('click', notify); }
+            destroy() {
+              if (pairTimer) clearTimeout(pairTimer);
+              editorView.dom.removeEventListener('keyup', notify);
+              editorView.dom.removeEventListener('click', notify);
+            }
           };
         }
       })];
@@ -132,7 +219,7 @@ const EmphasisDots = Mark.create({
   }
 });
 
-function createEditor(el, { content = '', placeholder = '', onUpdate = null, getNames = null, onSuggest = null } = {}) {
+function createEditor(el, { content = '', placeholder = '', onUpdate = null, getNames = null, onSuggest = null, tagTail = null, isTagCode = null, canPair = null } = {}) {
   const editor = new Editor({
     element: el,
     extensions: [
@@ -145,7 +232,7 @@ function createEditor(el, { content = '', placeholder = '', onUpdate = null, get
       Placeholder.configure({ placeholder }),
       Ruby,
       EmphasisDots,
-      WriterAssist({ getNames: getNames || (() => []), onSuggest })
+      WriterAssist({ getNames: getNames || (() => []), onSuggest, tagTail, isTagCode, canPair })
     ],
     content,
     onUpdate: ({ editor }) => { if (onUpdate) onUpdate(editor); }

@@ -25,6 +25,30 @@ export async function refreshRwTags() {
   return rwTags;
 }
 
+// カーソル直前テキストが登録タグコード（またはAAA/BBB）で終わる場合、そのコード長を返す。
+// 直前が英数字の場合は単語の一部とみなして0を返す（BAZのZなど誤爆防止）
+export function tagCodeTail(text) {
+  const t = text.toUpperCase();
+  for (const len of [3, 2]) {
+    if (t.length < len) continue;
+    const code = t.slice(-len);
+    const prev = t.length > len ? t[t.length - len - 1] : '';
+    if (/[A-Z0-9]/.test(prev)) continue;
+    if (len === 3) {
+      if (code === 'AAA' || code === 'BBB') return len;
+    } else if (tagSet.has(code)) {
+      return len;
+    }
+  }
+  return 0;
+}
+
+// コード文字列が有効なタグか（登録済み2文字 or 組み込みAAA/BBB）
+export function isRwTagCode(code) {
+  const c = String(code || '').toUpperCase();
+  return c === 'AAA' || c === 'BBB' || tagSet.has(c);
+}
+
 // ---------- 構文パーサ（プレーンテキスト走査） ----------
 function codeAt(text, i) {
   // 組み込み3文字タグ（AAA=対象に指示適用 / BBB=指示で生成）
@@ -350,6 +374,7 @@ export function initRewriteTags({ getEditor, setStatus } = {}) {
   setStatusFn = setStatus || setStatusFn;
   if (inited) return;
   inited = true;
+  refreshRwTags().catch(() => {}); // 自動ブラケット用にタグ一覧を事前取得
   $('btnCloseRwTags').onclick = () => $('rwTagModal').classList.add('hidden');
   $('rwTagModal').addEventListener('click', (e) => { if (e.target === $('rwTagModal')) $('rwTagModal').classList.add('hidden'); });
   $('btnNewRwTag').onclick = () => { $('rwTagForm').classList.remove('hidden'); $('rwId').value = ''; $('rwCode').value = ''; $('rwLabel').value = ''; $('rwInstruction').value = ''; $('btnDeleteRwTag').classList.add('hidden'); $('rwCode').focus(); };
