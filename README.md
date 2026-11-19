@@ -119,7 +119,7 @@ MeCab/UniDicが無い環境では自動的に近似メトリクスにフォー�
 
 AI Novelist Studio は、AIのべりすととの対話を通じて小説を「会話 → 整理 → 原稿化 → 管理」する流れを一つのツールにまとめた個人開発プロジェクトです。
 
-- **作者**: kirik
+- **作者**: ましろっぷ
 - **ライセンス**: MIT（[LICENSE](LICENSE) 参照）
 - **リポジトリ**: https://github.com/WLeln/ai-novelist-studio
 
