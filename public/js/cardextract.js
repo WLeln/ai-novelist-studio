@@ -1,6 +1,6 @@
 // ---------- AI応答→カード抽出：テキストから設定候補をAI抽出してカード化 ----------
 import { $ } from './dom.js';
-import { api, esc, appAlert } from './util.js';
+import { api, appAlert } from './util.js';
 import { allCards, CARD_KINDS } from './state.js';
 import { callApiOnce } from './context.js';
 import { refreshCards } from './cards.js';

@@ -160,9 +160,10 @@ function removeMessage(m, el) {
 export function addUserActions(el, msgObj) {
   const actions = document.createElement('div');
   actions.className = 'msg-actions user-actions';
-  const mk = (label, iconName, fn) => {
+  const mk = (label, iconName, fn, title) => {
     const b = document.createElement('button');
     b.innerHTML = icon(iconName) + ' ' + label;
+    if (title) b.title = title;
     b.onclick = fn;
     actions.appendChild(b);
   };

@@ -2,7 +2,7 @@
 // ツールメニュー「ローカル校正」から実行。原稿・ドキュメント・ソースをまとめて解析し、
 // 表記ゆれ/多用語/文体差異/ルビ不一致/NGワードを検出する。
 import { $ } from './dom.js';
-import { api, esc } from './util.js';
+import { api } from './util.js';
 import { allDocs, allSources } from './state.js';
 import { listManuscriptScenes } from './manuscript.js';
 

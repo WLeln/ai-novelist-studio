@@ -1,6 +1,6 @@
 // ---------- 作品に聞く：原稿・カード・ドキュメント・ソースを横断するAI Q&A ----------
 import { $ } from './dom.js';
-import { api, appAlert, esc } from './util.js';
+import { api, appAlert } from './util.js';
 import { allCards, allDocs, allSources } from './state.js';
 import { callApiOnce } from './context.js';
 import { listManuscriptScenes } from './manuscript.js';

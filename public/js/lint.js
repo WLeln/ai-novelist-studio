@@ -1,5 +1,4 @@
 // ---------- 表現 lint（AI不要の機械的チェック） ----------
-import { $ } from './dom.js';
 import { esc, showResultModal } from './util.js';
 import { current } from './state.js';
 import { msScene } from './manuscript.js';

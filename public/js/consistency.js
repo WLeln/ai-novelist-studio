@@ -125,7 +125,7 @@ export async function runConsistency() {
     if (!byName.has(n)) byName.set(n, []);
     byName.get(n).push(c);
   }
-  for (const [n, list] of byName) {
+  for (const [, list] of byName) {
     if (list.length > 1) {
       for (const c of list) {
         push({

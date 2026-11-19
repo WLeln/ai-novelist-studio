@@ -449,7 +449,7 @@ export async function sendTextToDocument(text) {
     doc = await api('/api/documents', { method: 'POST', body: JSON.stringify({ title, content: '' }) });
     await refreshDocuments();
   }
-  let prev, fullTitle = title, fullProject = '';
+  let prev, fullTitle, fullProject = '';
   if (currentDoc && currentDoc.id === doc.id) {
     // 開いているドキュメント自身：未保存分をフラッシュしてエディタの最新HTMLを使う
     if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; await saveDocNow(); }

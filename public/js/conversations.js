@@ -1,5 +1,5 @@
 // ---------- Conversations（一覧・タブ・下書き・検索・プロフィールパネル） ----------
-import { $, chatEl, inputEl, convListEl, convTitleEl, tokenBadgeEl, searchBox, searchResultsEl } from './dom.js';
+import { $, chatEl, inputEl, convListEl, convTitleEl, searchBox, searchResultsEl } from './dom.js';
 import { api, esc, icon, fmtDate, appAlert, appConfirm, appPrompt } from './util.js';
 import { current, setCurrent, allSources, allDocs, draftKey } from './state.js';
 import { clearChat, renderMessage, scrollChat, updateCharCount } from './messages.js';

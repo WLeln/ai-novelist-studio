@@ -611,7 +611,6 @@ function renderSide() {
   if (selEdgeIdx >= 0 && allEdges[selEdgeIdx]) { el.classList.remove('hidden'); renderEdgePanel(allEdges[selEdgeIdx], selEdgeIdx); return; }
   el.classList.add('hidden');
 }
-function otherNode(id) { return nodes.get(id); }
 function nodeLink(id) {
   const n = nodes.get(id);
   return n ? esc(n.label) : '(削除済み)';

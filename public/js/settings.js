@@ -29,11 +29,6 @@ export const PROVIDER_URLS = {
   lmstudio: 'http://localhost:1234/v1',
   custom: ''
 };
-function detectProvider(baseUrl) {
-  const b = (baseUrl || '').replace(/\/+$/, '');
-  for (const [k, v] of Object.entries(PROVIDER_URLS)) if (v && b === v) return k;
-  return 'custom';
-}
 export function updateModelHint() {
   const m = $('sModel').value;
   $('modelHint').textContent = MODEL_INFO[m] || '';

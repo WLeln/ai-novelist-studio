@@ -1,5 +1,4 @@
 // ---------- Lorebook（キーワード自動注入カード）/ #タグ呼び出し / #タグサジェスト ----------
-import { $ } from './dom.js';
 import { inputEl } from './dom.js';
 import { allCards, current, CARD_KINDS } from './state.js';
 import { apiMessages } from './chat.js';

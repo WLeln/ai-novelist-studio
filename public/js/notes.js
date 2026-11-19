@@ -1,7 +1,7 @@
 // ---------- Notes（Zettelkasten型ノートIDE） ----------
 // [[ノート名]] / [[ノート名|表示]] リンク、#タグ、被リンク一覧、カード/ソースへの昇格
 import { $ } from './dom.js';
-import { api, appAlert, appConfirm, esc, fmtDate } from './util.js';
+import { api, appAlert, appConfirm, fmtDate } from './util.js';
 import { activateTab, registerTabOpener, showNotesView, showChatView } from './conversations.js';
 import { refreshCards } from './cards.js';
 import { refreshSources } from './sources.js';
