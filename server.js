@@ -308,10 +308,19 @@ function authOK(req) {
 }
 if (ACCESS_TOKEN) {
   // ログインは POST /login（URLにキーを載せない）
+  const loginFails = new Map();
   app.post('/login', express.urlencoded({ extended: false }), (req, res) => {
+    const ip = req.ip || req.socket.remoteAddress || '';
+    const rec = loginFails.get(ip);
+    if (rec && rec.until > Date.now()) {
+      return res.status(429).type('html').send('試行回数が多すぎます。1分ほど待ってから再試行してください。');
+    }
     if (!tokenMatch(req.body && req.body.key)) {
+      const c = (rec ? rec.count : 0) + 1;
+      loginFails.set(ip, { count: c, until: c >= 5 ? Date.now() + 60000 : 0 });
       return res.status(401).type('html').send(LOGIN_HTML_FOR_POST);
     }
+    loginFails.delete(ip);
     res.setHeader('Set-Cookie', `nc_access=${ACCESS_TOKEN}; Path=/; HttpOnly; SameSite=Lax; Max-Age=31536000`);
     res.redirect('/');
   });
@@ -1426,7 +1435,7 @@ app.delete('/api/timemachine/:id', (req, res) => {
 // docs行（{kind,id,data,updated}）からインメモリストアを再構築。
 // config行が含まれる場合のみ設定も復元（タイムマシン復元ではconfigはpayloadに無いので現状維持）
 function rebuildMemoryStores(rows) {
-  const byKind = {};
+  const byKind = Object.create(null);
   for (const d of rows || []) {
     (byKind[d.kind] = byKind[d.kind] || []).push(d);
   }
