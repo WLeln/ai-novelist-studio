@@ -130,7 +130,7 @@ async function runCompare() {
       const st = c.status === 'added' ? '追加' : c.status === 'removed' ? '削除' : '変更';
       html += `<div class="sr-group tm-chg" data-key="${esc(c.key)}">
         <div class="sr-head">
-          <span class="sr-type">${KIND_LABEL[c.kind] || c.kind}</span>
+          <span class="sr-type">${esc(KIND_LABEL[c.kind] || c.kind)}</span>
           <strong class="sr-title"></strong>
           <span class="hint">${st}</span>
           <button class="btn-ghost btn-sm tm-view">差分を見る</button>

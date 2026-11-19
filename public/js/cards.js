@@ -50,7 +50,7 @@ function renderCardList() {
   for (const c of shown) {
     const div = document.createElement('div');
     div.className = 'card-item';
-    div.innerHTML = `<span class="card-kind">${CARD_KINDS[c.kind] || c.kind}</span> <strong></strong> ${c.resolved ? '<span class="card-resolved">回収済</span>' : ''} <span class="hint"></span>`;
+    div.innerHTML = `<span class="card-kind">${esc(CARD_KINDS[c.kind] || c.kind)}</span> <strong></strong> ${c.resolved ? '<span class="card-resolved">回収済</span>' : ''} <span class="hint"></span>`;
     div.querySelector('strong').textContent = c.name;
     const tagStr = String(c.tags || '').split(/[,、\s]+/).filter(Boolean).map(t => '#' + t).join(' ');
     const aliasStr = String(c.aliases || '').split(/[,、\s]+/).filter(Boolean).map(t => '別名:' + t).join(' ');

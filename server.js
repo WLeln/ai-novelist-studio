@@ -30,9 +30,17 @@ const LEGACY_FILES = {
 const LEGACY_SNAP_DIR = path.join(DATA_DIR, 'snapshots');
 
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+if (process.platform !== 'win32') {
+  try { fs.chmodSync(DATA_DIR, 0o700); } catch {}
+}
 
 // ---------- SQLite ----------
 const db = new DatabaseSync(DB_FILE);
+if (process.platform !== 'win32') {
+  for (const f of [DB_FILE, DB_FILE + '-wal', DB_FILE + '-shm']) {
+    try { if (fs.existsSync(f)) fs.chmodSync(f, 0o600); } catch {}
+  }
+}
 db.exec(`CREATE TABLE IF NOT EXISTS docs (
   kind TEXT NOT NULL,
   id TEXT NOT NULL,
@@ -251,27 +259,68 @@ function getLanUrl() {
 
 app.use(express.json({ limit: '25mb' }));
 
+// ---------- セキュリティ: ID検証・ローカル限定 ----------
+// __proto__ 等の特殊IDを拒否（プロトタイプ汚染対策）
+app.use((req, res, next) => {
+  if (/(^|\/)(__proto__|constructor|prototype)(\/|$)/.test(req.path)) {
+    return res.status(400).json({ error: 'invalid id' });
+  }
+  next();
+});
+// ACCESS_TOKEN 未設定のローカル運用では、DNSリバインディングや
+// CSRFを防ぐため Host が localhost 系であることと、状態変更リクエストの
+// Origin/Sec-Fetch-Site を検証する
+if (!(process.env.ACCESS_TOKEN || '')) {
+  const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
+  const normHost = (h) => LOCAL_HOSTS.has(String(h || '').replace(/^\[|\]$/g, '').split(':')[0].toLowerCase());
+  app.use((req, res, next) => {
+    if (!normHost(req.headers.host)) return res.status(403).json({ error: 'forbidden host' });
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+      const origin = req.headers.origin;
+      if (origin && origin !== 'null') {
+        try {
+          if (!normHost(new URL(origin).hostname)) {
+            return res.status(403).json({ error: 'cross-origin request blocked' });
+          }
+        } catch { /* パース不能なOriginは許可（Electron file:// 等） */ }
+      }
+      const sfs = req.headers['sec-fetch-site'];
+      if (sfs && sfs !== 'same-origin' && sfs !== 'none') {
+        return res.status(403).json({ error: 'cross-site request blocked' });
+      }
+    }
+    next();
+  });
+}
+
 // ---------- アクセスキー認証（ACCESS_TOKEN環境変数がある時のみ有効） ----------
 const ACCESS_TOKEN = process.env.ACCESS_TOKEN || '';
+function tokenMatch(k) {
+  if (!k || !ACCESS_TOKEN) return false;
+  const a = Buffer.from(String(k)), b = Buffer.from(ACCESS_TOKEN);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
 function authOK(req) {
   const cookie = (req.headers.cookie || '').match(/(?:^|;\s*)nc_access=([^;]+)/);
-  const k = req.query.key || (cookie && cookie[1]) || '';
-  return k === ACCESS_TOKEN;
+  const auth = req.headers.authorization || '';
+  const k = (cookie && cookie[1]) || (auth.startsWith('Bearer ') ? auth.slice(7).trim() : '');
+  return tokenMatch(k);
 }
 if (ACCESS_TOKEN) {
+  // ログインは POST /login（URLにキーを載せない）
+  app.post('/login', express.urlencoded({ extended: false }), (req, res) => {
+    if (!tokenMatch(req.body && req.body.key)) {
+      return res.status(401).type('html').send(LOGIN_HTML_FOR_POST);
+    }
+    res.setHeader('Set-Cookie', `nc_access=${ACCESS_TOKEN}; Path=/; HttpOnly; SameSite=Lax; Max-Age=31536000`);
+    res.redirect('/');
+  });
   const LOGIN_HTML = `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AI Novelist Studio</title>
 <style>body{font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#12111a;color:#e6e4f0}form{background:#1b1a26;padding:32px;border-radius:14px;display:flex;flex-direction:column;gap:14px;width:300px}h1{font-size:17px;margin:0}input{padding:10px;border-radius:8px;border:1px solid #3a3952;background:#17161f;color:#e6e4f0;font-size:15px}button{padding:10px;border:none;border-radius:8px;background:#6c5ce7;color:#fff;font-size:14px;font-weight:600;cursor:pointer}</style></head>
-<body><form method="get" action="/"><h1>AI Novelist Studio</h1><input type="password" name="key" placeholder="アクセスキー" autofocus><button type="submit">入室</button></form></body></html>`;
+<body><form method="post" action="/login"><h1>AI Novelist Studio</h1><input type="password" name="key" placeholder="アクセスキー" autofocus><button type="submit">入室</button></form></body></html>`;
+  const LOGIN_HTML_FOR_POST = LOGIN_HTML;
   app.use((req, res, next) => {
-    if (authOK(req)) {
-      if (req.query.key) { // 初回アクセス：Cookieに保存してURLからキーを除去
-        res.setHeader('Set-Cookie', `nc_access=${ACCESS_TOKEN}; Path=/; HttpOnly; SameSite=Lax; Max-Age=31536000`);
-        const u = new URL(req.originalUrl, 'http://x');
-        u.searchParams.delete('key');
-        return res.redirect(u.pathname + u.search);
-      }
-      return next();
-    }
+    if (authOK(req)) return next();
     if (req.path === '/') return res.type('html').send(LOGIN_HTML);
     if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'アクセスキーが必要です' });
     return res.status(401).send('アクセスキーが必要です');
@@ -1180,7 +1229,16 @@ app.get('/api/backup', (req, res) => {
   flushAllWrites();
   const rows = db.prepare(
     "SELECT kind, id, data, updated FROM docs WHERE kind NOT IN ('tmsnap','tmsnapdata')"
-  ).all();
+  ).all().map(r => {
+    // configにはAPIキーが含まれるため、バックアップからは除去する
+    if (r.kind === 'config') {
+      try {
+        const c = JSON.parse(r.data);
+        if (c && c.apiKey) { c.apiKey = ''; r.data = JSON.stringify(c); }
+      } catch {}
+    }
+    return r;
+  });
   res.json({ app: 'ai-novelist-studio', ts: Date.now(), docs: rows });
 });
 app.post('/api/backup/restore', (req, res) => {
@@ -1195,7 +1253,22 @@ app.post('/api/backup/restore', (req, res) => {
   let hasConfig = false;
   for (const d of docs) {
     if (!d || typeof d.kind !== 'string' || typeof d.id !== 'string' || typeof d.data !== 'string') continue;
-    if (d.kind === 'config') hasConfig = true;
+    if (d.kind === 'config') {
+      hasConfig = true;
+      // バックアップ側で除去されたAPIキーは既存値を維持する
+      try {
+        const cfg = JSON.parse(d.data);
+        if (cfg && !cfg.apiKey) {
+          for (const old of savedConfig) {
+            try {
+              const oc = JSON.parse(old.data);
+              if (oc && oc.apiKey) { cfg.apiKey = oc.apiKey; break; }
+            } catch {}
+          }
+          d.data = JSON.stringify(cfg);
+        }
+      } catch {}
+    }
     try { ins.run(d.kind, d.id, d.data, Number(d.updated) || Date.now()); n++; } catch {}
   }
   if (!hasConfig) {
@@ -1672,7 +1745,7 @@ function startListener() {
   // 外部公開（LAN公開・HOST=0.0.0.0）にはアクセスキーが必須。
   // ACCESS_TOKEN 未設定で lanAccess がONでも localhost のみに留める
   const wantPublic = !!FORCE_HOST || config.lanAccess === true;
-  const host = FORCE_HOST || (wantPublic && ACCESS_TOKEN ? '0.0.0.0' : '127.0.0.1');
+  const host = (wantPublic && ACCESS_TOKEN) ? (FORCE_HOST || '0.0.0.0') : '127.0.0.1';
   lanPublic = host === '0.0.0.0';
   if (wantPublic && !ACCESS_TOKEN) {
     console.warn('警告: ACCESS_TOKEN が未設定のため外部公開を無効化しました（127.0.0.1 のみで待受）');
