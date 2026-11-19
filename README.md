@@ -123,11 +123,3 @@ AI Novelist Studio は、AIのべりすととの対話を通じて小説を「�
 - **ライセンス**: MIT（[LICENSE](LICENSE) 参照）
 - **リポジトリ**: https://github.com/WLeln/ai-novelist-studio
 
-## クレジット
-
-- フロントエンドのMarkdown描画に [marked.js](https://marked.js.org/) / [DOMPurify](https://github.com/cure53/DOMPurify) を使用
-- リッチテキストエディタに [TipTap](https://tiptap.dev/) を使用
-- 文体分析に [jreadability](https://github.com/joshdavham/jreadability)（MeCab + UniDic）を使用。MeCabはトライデュアルライセンス（BSD選択）、UniDicはNINJALのライセンスに基づき同梱
-- AI推論はユーザー自身のAPIキーで実行（本ソフトウェア自体はAIモデルを内蔵しません）
-- 接続先はAIのべりすと（`spiko_ultra`）に固定されています
-<file_pathal>c:\Users\User\Downloads\ai-novelist-studio-main\ai-novelist-studio-main\README.md
