@@ -59,6 +59,7 @@ export function openSettings() {
   $('sTopPVal').textContent = config.params.topP;
   $('sSystemPrompt').value = config.systemPrompt || '';
   $('sWorldMemo').value = config.worldMemo || '';
+  $('sNgWords').value = (config.ngWords || []).join('\n');
   $('lanHint').textContent = config.lanAccess
     ? (config.accessTokenSet === false
       ? '注意: ACCESS_TOKENが未設定のためLAN公開は無効です（このPCのみ）'
@@ -123,6 +124,7 @@ export async function saveSettings() {
     lanAccess: $('sLanAccess').checked,
     systemPrompt: $('sSystemPrompt').value,
     worldMemo: $('sWorldMemo').value,
+    ngWords: ($('sNgWords')?.value || '').split(/\n|、|,/).map(w => w.trim()).filter(Boolean),
     stylePreset: (() => { const v = $('sStylePreset').value; return STYLE_PRESETS[v] || v || ''; })()
   };
   for (const [elId, key] of ADV_FIELDS) {

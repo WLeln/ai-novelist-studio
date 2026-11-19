@@ -21,6 +21,7 @@ import { openFlowGen } from './flowgen.js';
 import { initWorldGraph, openGraphTab } from './worldgraph.js';
 import { initSearchReplace } from './searchreplace.js';
 import { initConsistency } from './consistency.js';
+import { initLocalCheck } from './localcheck.js';
 import { initTimeMachine } from './timemachine.js';
 import { initCowrite } from './cowrite.js';
 import { initAskWork } from './askwork.js';
@@ -156,6 +157,7 @@ function bindUI() {
   initWorldGraph();
   initSearchReplace();
   initConsistency();
+  initLocalCheck();
   initTimeMachine();
   initCowrite();
   initAskWork();

@@ -153,6 +153,7 @@ function flushMsSave() {
   clearTimeout(msSaveTimer);
   msSaveTimer = null;
   api('/api/manuscript', { method: 'PUT', body: JSON.stringify(manuscript) })
+    .then(() => window.__onMsSaved?.())
     .catch(() => { const el = $('msStatus'); if (el) el.textContent = '原稿の保存に失敗しました'; });
 }
 // タブを閉じる・バックグラウンド化する直前にデバウンス分を確定保存

@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>AI Novelist Studio</title>
-<link rel="stylesheet" href="/css/style.css?v=36">
+<link rel="stylesheet" href="/css/style.css?v=37">
 </head>
 <body>
 <script>document.documentElement.dataset.sidebar = localStorage.getItem('sidebar_collapsed') === '1' ? 'collapsed' : '';</script>
@@ -163,6 +163,7 @@
             <button class="menu-item" id="miTimeMachine"><svg class="icon"><use href="#i-refresh"/></svg> タイムマシン</button>
             <button class="menu-item" id="miBackup"><svg class="icon"><use href="#i-refresh"/></svg> バックアップ / 復元</button>
             <button class="menu-item" id="miConsistency"><svg class="icon"><use href="#i-search"/></svg> 一貫性チェック</button>
+            <button class="menu-item" id="miLocalCheck"><svg class="icon"><use href="#i-search"/></svg> ローカル校正<span id="lcBadge" class="lc-badge hidden"></span></button>
             <button class="menu-item" id="miSearchReplace"><svg class="icon"><use href="#i-search"/></svg> 横断検索・置換</button>
             <button class="menu-item" id="miAskWork"><svg class="icon"><use href="#i-sparkle"/></svg> 作品に聞く（AI横断Q&A）</button>
           </div>
@@ -626,7 +627,9 @@
           <textarea id="sSystemPrompt" rows="2" placeholder="例: あなたは小説家です。設定を守って執筆してください"></textarea>
         </label>
         <label class="set-label">文脈メモ（世界観・登場人物・あらすじ）
-          <textarea id="sWorldMemo" rows="3" placeholder="毎回システムプロンプトに付加されます"></textarea>
+          <textarea id="sWorldMemo" rows="3" placeholder="作品世界観メモ。システムプロンプトに付加されます"></textarea>
+          <label class="set-label">NGワード（1行に1語。ローカル校正で検出）</label>
+          <textarea id="sNgWords" rows="3" placeholder="例：&#10;〜だ。&#10;笑"></textarea>
         </label>
         <div class="set-grid">
           <label class="set-label">文体プリセット
@@ -905,6 +908,24 @@
     <div class="modal-body">
       <p class="hint" style="margin:0 0 8px">設定カードを「契約」として、原稿・ドキュメント・ソースの本文と照合します。数値矛盾・未登場・カード異常を検出。</p>
       <div id="consResults" style="max-height:56vh;overflow-y:auto"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ローカル校正（形態素解析・AI不使用）モーダル -->
+<div id="lcModal" class="modal hidden">
+  <div class="modal-content" style="width:min(760px,94vw)">
+    <div class="modal-header">
+      <h2><svg class="icon"><use href="#i-search"/></svg> ローカル校正</h2>
+      <div style="display:flex;gap:10px;align-items:center">
+        <label class="hint" style="display:flex;align-items:center;gap:4px;cursor:pointer" title="原稿保存の8秒後に自動で再チェックします"><input type="checkbox" id="lcAuto"> 保存後に自動チェック</label>
+        <button id="btnLcRun" class="btn-ghost btn-sm">再チェック</button>
+        <button class="modal-close" id="btnCloseLc"><svg class="icon"><use href="#i-close"/></svg></button>
+      </div>
+    </div>
+    <div class="modal-body">
+      <p class="hint" style="margin:0 0 8px">MeCab+UniDicの形態素解析で機械的にチェックします（AI不使用・トークン消費なし）。表記ゆれ・多用語・文体差異・ルビ不一致・NGワードを検出。原稿・ドキュメント・ソースが対象です。</p>
+      <div id="lcResults" style="max-height:56vh;overflow-y:auto"></div>
     </div>
   </div>
 </div>

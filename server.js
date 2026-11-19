@@ -6,6 +6,8 @@ const { DatabaseSync } = require('node:sqlite');
 // ファイル取り込み用ライブラリ（PDF/DOCXのテキスト抽出）
 const { PDFParse } = require('pdf-parse');
 const mammoth = require('mammoth');
+const { spawn } = require('child_process');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 3737;
@@ -209,7 +211,8 @@ const defaultConfig = {
   systemPrompt: '',
   worldMemo: '',
   stylePreset: '',
-  lanAccess: false
+  lanAccess: false,
+  ngWords: []
 };
 
 const savedConfig = loadDoc('config', 'main', {});
@@ -409,6 +412,321 @@ app.post('/api/readability', async (req, res) => {
   res.json(approxMetrics(text));
 });
 
+
+// ---------- ローカル校正（MeCab+UniDic 形態素解析。AI不使用・トークン消費なし） ----------
+// /api/localcheck: items=[{id,type,label,text}] を受け取り、形態素解析ベースの
+// 機械的チェック（表記ゆれ/多用語/文体差異/体言止め/ルビ不一致/NGワード）を返す。
+const LC_CONTENT_POS = new Set(['名詞', '動詞', '形容詞', '形状詞', '副詞']);
+const LC_SENTFINAL_POS = new Set([...LC_CONTENT_POS, '代名詞']);
+const LC_STOP = new Set(('する いる ある なる れる られる できる いく くる いった てる ている ました ません だっ だった など こと もの ため よう それ これ あれ どれ そこ ここ まだ もう しかし だから そして また ちょうど ずっと やっと きっと たぶん もちろん いわゆる かなり そう こう どう どこ いつ 誰 何 私 僕 俺 彼女 彼 自分 あなた みんな 家族 両親 父 母 弟 妹 兄 姉 男 女 子供 人々 友達 友人 相手').split(' '));
+const LC_CONCURRENCY = 6;
+const LC_MAX_ITEMS = 300;
+const LC_MAX_TEXT = 150000;
+const LC_MAX_RUBY = 200;
+const lcTokenCache = new Map(); // sha1 -> tokens（同一本文の再解析を回避）
+
+function lcMecabPaths() {
+  const bin = mecabBinDir();
+  const dic = resolveUnidic();
+  if (!bin || !dic) return null;
+  const exe = path.join(bin, process.platform === 'win32' ? 'mecab.exe' : 'mecab');
+  return fs.existsSync(exe) ? { exe } : null;
+}
+
+function runMecab(text, exe) {
+  return new Promise((resolve, reject) => {
+    ensureMecabOnPath();
+    const p = spawn(exe, [], { env: process.env });
+    const chunks = [];
+    p.stdout.on('data', d => chunks.push(d));
+    p.stderr.on('data', () => {});
+    p.on('error', reject);
+    p.on('close', () => {
+      try {
+        const out = new TextDecoder('utf-8').decode(Buffer.concat(chunks));
+        const tokens = [];
+        for (const raw of out.split('\n')) {
+          const line = raw.endsWith('\r') ? raw.slice(0, -1) : raw;
+          if (!line || line === 'EOS' || line === 'BOS/EOS') continue;
+          const tab = line.indexOf('\t');
+          if (tab < 0) continue;
+          const c = line.slice(tab + 1).split(',');
+          tokens.push({ s: line.slice(0, tab), pos: c[0] || '', r: c[9] || '' });
+        }
+        resolve(tokens);
+      } catch (e) { reject(e); }
+    });
+    p.stdin.on('error', () => {});
+    p.stdin.end(text, 'utf8');
+  });
+}
+
+const lcKatakanaToHira = (s) => String(s || '').replace(/[ァ-ヶ]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0x60));
+const lcIsContent = (t) => LC_CONTENT_POS.has(t.pos)
+  && t.s && t.s.length >= 2 && !LC_STOP.has(t.s)
+  && !/^[0-9０-９\s]+$/.test(t.s);
+
+// テキスト前処理: 《漢字|よみ》→漢字、《＊傍点》→文字だけ残す（解析ノイズ除去）
+function lcCleanText(text) {
+  return String(text || '')
+    .replace(/《([^|》]+)\|[^》]*》/g, '$1')
+    .replace(/《＊([^》]*)》/g, '$1')
+    .replace(/《([^》]*)》/g, '$1');
+}
+
+function lcSentences(text) {
+  return String(text || '').split(/(?<=[。！？!?])|\n+/).map(s => s.trim()).filter(s => s.length >= 2);
+}
+
+function lcAnalyzeTokens(tokens, text) {
+  const freq = new Map();          // surface -> {n}
+  const yure = new Map();          // reading(hira) -> Map(surface -> n)
+  let lastSentPos = '';            // 文末候補トークンのpos
+  let nounFinal = 0, sentFinal = 0;
+  const endSentence = () => {
+    if (lastSentPos) {
+      sentFinal++;
+      if (lastSentPos === '名詞' || lastSentPos === '代名詞') nounFinal++;
+    }
+    lastSentPos = '';
+  };
+  for (const t of tokens) {
+    if (t.pos === '補助記号' && /[。！？!?]/.test(t.s)) { endSentence(); continue; }
+    if (!t.s || t.pos === '補助記号' || t.pos === '空白' || t.pos === 'フィラー') continue;
+    if (LC_SENTFINAL_POS.has(t.pos)) lastSentPos = t.pos;
+    if (!lcIsContent(t)) continue;
+    const f = freq.get(t.s) || { n: 0 };
+    f.n++; freq.set(t.s, f);
+    if (t.r) {
+      const key = lcKatakanaToHira(t.r);
+      if (key.length >= 3 && [...t.s].length >= 2) {
+        let m = yure.get(key);
+        if (!m) { m = new Map(); yure.set(key, m); }
+        m.set(t.s, (m.get(t.s) || 0) + 1);
+      }
+    }
+  }
+  endSentence();
+
+  const sents = lcSentences(text);
+  const lens = sents.map(s => [...s.replace(/[、。！？!?\s]/g, '')].length).filter(n => n > 0);
+  const mean = lens.length ? lens.reduce((a, b) => a + b, 0) / lens.length : 0;
+  const std = lens.length ? Math.sqrt(lens.reduce((a, b) => a + (b - mean) * (b - mean), 0) / lens.length) : 0;
+  const commas = (text.match(/、/g) || []).length;
+  const chars = [...text.replace(/\s/g, '')].length;
+
+  return {
+    freq, yure, sents: sents.length,
+    stats: {
+      meanLen: +mean.toFixed(1), stdLen: +std.toFixed(1),
+      taigenRate: sentFinal ? +(nounFinal / sentFinal).toFixed(3) : 0,
+      sentFinal, commaPer100: chars ? +(100 * commas / chars).toFixed(2) : 0,
+      chars
+    }
+  };
+}
+
+// 表記ゆれ候補の絞り込み: 漢字あり↔仮名のみ、または漢字骨格が同一で送り仮名違い
+const lcKanjiOnly = (s) => String(s).replace(/[^一-龯々〆ヵヶ]/g, '');
+const lcHasKanji = (s) => /[一-龯々〆ヵヶ]/.test(s);
+const lcHasKana = (s) => /[ぁ-んァ-ヶー]/.test(s);
+
+function lcYureCandidates(yureMap) {
+  const out = [];
+  for (const [read, surfaces] of yureMap) {
+    const list = [...surfaces.entries()].filter(([, n]) => n >= 2);
+    if (list.length < 2) continue;
+    const total = list.reduce((a, [, n]) => a + n, 0);
+    if (total < 4) continue;
+    const forms = list.map(([s]) => s);
+    const kanjiMix = forms.some(lcHasKanji) && forms.some(s => !lcHasKanji(s) && lcHasKana(s));
+    const sameSkeleton = (() => {
+      const sk = new Set(forms.map(lcKanjiOnly).filter(Boolean));
+      return sk.size === 1 && forms.length >= 2;
+    })();
+    if (!kanjiMix && !sameSkeleton) continue;
+    out.push({ read, forms: list.sort((a, b) => b[1] - a[1]), total });
+  }
+  return out.sort((a, b) => b.total - a.total).slice(0, 30);
+}
+
+app.post('/api/localcheck', async (req, res) => {
+  const paths = lcMecabPaths();
+  if (!paths) {
+    return res.json({ available: false, reason: 'mecab/UniDicが見つかりません（npm run setup:readability でセットアップ）', findings: [], items: 0 });
+  }
+  ensureMecabOnPath();
+  const items = (Array.isArray(req.body?.items) ? req.body.items : [])
+    .slice(0, LC_MAX_ITEMS)
+    .map((it, i) => ({
+      id: String(it.id || i), type: String(it.type || ''), label: String(it.label || ''),
+      text: String(it.text || '').slice(0, LC_MAX_TEXT)
+    }))
+    .filter(it => it.text.trim().length >= 10);
+  if (!items.length) return res.json({ available: true, findings: [], items: 0 });
+
+  const analyses = new Array(items.length);
+  let idx = 0;
+  const worker = async () => {
+    while (idx < items.length) {
+      const i = idx++;
+      const it = items[i];
+      const clean = lcCleanText(it.text);
+      const hash = crypto.createHash('sha1').update(clean).digest('hex');
+      let tokens = lcTokenCache.get(hash);
+      if (!tokens) {
+        try { tokens = await runMecab(clean + '\n', paths.exe); }
+        catch { tokens = []; }
+        if (lcTokenCache.size > 500) lcTokenCache.clear();
+        lcTokenCache.set(hash, tokens);
+      }
+      analyses[i] = { item: it, ...lcAnalyzeTokens(tokens, it.text), tokens };
+    }
+  };
+  await Promise.all(Array.from({ length: LC_CONCURRENCY }, worker));
+
+  const findings = [];
+  const push = (kind, severity, title, detail, itemRefs) => {
+    findings.push({ kind, severity, title, detail, items: itemRefs });
+  };
+  const refOf = (id) => {
+    const a = analyses.find(x => x.item.id === id);
+    return a ? { type: a.item.type, id: a.item.id, label: a.item.label } : null;
+  };
+
+  // ---- 1) 表記ゆれ（コーパス横断） ----
+  const corpusYure = new Map(); // read -> Map(surface -> {n, items:Set})
+  for (const a of analyses) {
+    for (const c of lcYureCandidates(a.yure)) {
+      let g = corpusYure.get(c.read);
+      if (!g) { g = new Map(); corpusYure.set(c.read, g); }
+      for (const [s, n] of c.forms) {
+        let e = g.get(s);
+        if (!e) { e = { n: 0, items: new Set() }; g.set(s, e); }
+        e.n += n; e.items.add(a.item.id);
+      }
+    }
+  }
+  for (const [read, surfaces] of corpusYure) {
+    const forms = [...surfaces.entries()].filter(([, e]) => e.n >= 2);
+    if (forms.length < 2) continue;
+    const total = forms.reduce((a, [, e]) => a + e.n, 0);
+    if (total < 4) continue;
+    const itemSet = new Set();
+    forms.forEach(([, e]) => e.items.forEach(id => itemSet.add(id)));
+    push('yure', 'warn', '表記ゆれ',
+      '読み「' + read + '」に ' + forms.map(([s, e]) => '「' + s + '」×' + e.n).join(' / ') + ' の揺れ（計' + total + '箇所）',
+      [...itemSet].slice(0, 5).map(refOf).filter(Boolean));
+  }
+
+  // ---- 2) 多用語（コーパス頻度＋単一アイテム集中） ----
+  const corpusFreq = new Map(); // surface -> {n, items:Set}
+  for (const a of analyses) {
+    for (const [s, f] of a.freq) {
+      let e = corpusFreq.get(s);
+      if (!e) { e = { n: 0, items: new Set() }; corpusFreq.set(s, e); }
+      e.n += f.n; e.items.add(a.item.id);
+    }
+  }
+  const overused = [...corpusFreq.entries()]
+    .filter(([, e]) => e.n >= 10 || (e.n >= 6 && e.items.size >= 3))
+    .sort((a, b) => b[1].n - a[1].n).slice(0, 20);
+  for (const [w, e] of overused) {
+    push('overuse', 'info', '多用語', '「' + w + '」が全体で' + e.n + '回（' + e.items.size + 'テキストに分布）',
+      [...e.items].slice(0, 4).map(refOf).filter(Boolean));
+  }
+  for (const a of analyses) {
+    const hot = [...a.freq.entries()].filter(([s, f]) => f.n >= 8 && [...s].length >= 2)
+      .sort((x, y) => y[1].n - x[1].n).slice(0, 3);
+    if (hot.length) {
+      push('overuse', 'info', '多用語（局所）',
+        '「' + a.item.label + '」内で ' + hot.map(([s, f]) => '「' + s + '」×' + f.n).join('、'),
+        [refOf(a.item.id)]);
+    }
+  }
+
+  // ---- 3) 文体差異（平均文長・体言止め率のコーパス内外れ値） ----
+  const statItems = analyses.filter(a => a.stats.sents >= 5 && a.stats.chars >= 200);
+  if (statItems.length >= 5) {
+    for (const key of ['meanLen', 'taigenRate']) {
+      const vals = statItems.map(a => a.stats[key]);
+      const m = vals.reduce((x, y) => x + y, 0) / vals.length;
+      const sd = Math.sqrt(vals.reduce((x, y) => x + (y - m) * (y - m), 0) / vals.length) || 1e-9;
+      for (const a of statItems) {
+        const z = (a.stats[key] - m) / sd;
+        if (Math.abs(z) < 2.2) continue;
+        const isLen = key === 'meanLen';
+        push('style', 'info', '文体差異',
+          '「' + a.item.label + '」の' + (isLen ? '平均文長' : '体言止め率') + 'が ' +
+          (isLen ? a.stats.meanLen + '字' : Math.round(a.stats.taigenRate * 100) + '%') +
+          '（全体平均 ' + (isLen ? m.toFixed(1) + '字' : Math.round(m * 100) + '%') + '）と大きく異なります',
+          [refOf(a.item.id)]);
+      }
+    }
+  }
+
+  // ---- 4) ルビ不一致 ----
+  const rubies = [];
+  for (const a of analyses) {
+    const re = /《([^|》]+)\|([^》]+)》/g;
+    let m;
+    while ((m = re.exec(a.item.text)) && rubies.length < LC_MAX_RUBY) {
+      rubies.push({ base: m[1], yomi: m[2], item: a.item });
+    }
+  }
+  if (rubies.length) {
+    const rubyResults = new Array(rubies.length);
+    let ri = 0;
+    const rworker = async () => {
+      while (ri < rubies.length) {
+        const j = ri++;
+        const rb = rubies[j];
+        try {
+          const tk = await runMecab(rb.base + '\n', paths.exe);
+          const read = tk.map(t => t.r).join('');
+          rubyResults[j] = { rb, read: lcKatakanaToHira(read) };
+        } catch { rubyResults[j] = { rb, read: '' }; }
+      }
+    };
+    await Promise.all(Array.from({ length: LC_CONCURRENCY }, rworker));
+    let rubyCount = 0;
+    for (const { rb, read } of rubyResults) {
+      if (!read) continue;
+      // 長音・母音の揺れを許容するため子音骨格で比較（「とうきょう」≒「とーきょー」）
+      const skel = (x) => lcKatakanaToHira(x).replace(/[あいうえおぁぃぅぇぉァィゥェォー\s]/g, '');
+      const want = skel(rb.yomi);
+      const got = skel(read);
+      if (!want || want === got) continue;
+      rubyCount++;
+      if (rubyCount > 20) break;
+      push('ruby', 'warn', 'ルビ不一致',
+        '《' + rb.base + '|' + rb.yomi + '》→ 実際の読みは「' + read + '」の可能性',
+        [refOf(rb.item.id)]);
+    }
+  }
+
+  // ---- 5) NGワード ----
+  const ngWords = Array.isArray(config.ngWords) ? config.ngWords.filter(w => w && w.trim()) : [];
+  for (const w of ngWords) {
+    const hits = [];
+    for (const a of analyses) {
+      const n = a.item.text.split(w).length - 1;
+      if (n > 0) hits.push({ n, item: a.item });
+    }
+    if (hits.length) {
+      hits.sort((x, y) => y.n - x.n);
+      const total = hits.reduce((x, h) => x + h.n, 0);
+      push('ngword', 'warn', 'NGワード',
+        '「' + w + '」が' + total + '箇所（' + hits.length + 'テキスト）',
+        hits.slice(0, 5).map(h => ({ type: h.item.type, id: h.item.id, label: h.item.label + ' ×' + h.n })));
+    }
+  }
+
+  const SEV = { warn: 0, info: 1 };
+  findings.sort((a, b) => (SEV[a.severity] ?? 2) - (SEV[b.severity] ?? 2));
+  res.json({ available: true, findings, items: items.length, analyzedAt: Date.now() });
+});
+
 // ---------- Config ----------
 app.get('/api/config', (req, res) => {
   res.json({
@@ -426,7 +744,8 @@ app.get('/api/config', (req, res) => {
     lanAccess: config.lanAccess === true,
     lanPublic,
     accessTokenSet: !!ACCESS_TOKEN,
-    lanUrl: getLanUrl()
+    lanUrl: getLanUrl(),
+    ngWords: Array.isArray(config.ngWords) ? config.ngWords : []
   });
 });
 
@@ -448,6 +767,9 @@ app.post('/api/config', (req, res) => {
   if (typeof b.stream === 'boolean') config.stream = b.stream;
   if (typeof b.sendOnEnter === 'boolean') config.sendOnEnter = b.sendOnEnter;
   if (typeof b.lanAccess === 'boolean') config.lanAccess = b.lanAccess;
+  if (Array.isArray(b.ngWords)) {
+    config.ngWords = b.ngWords.map(w => String(w).trim().slice(0, 50)).filter(Boolean).slice(0, 200);
+  }
   writeDoc('config', 'main', config);
   if ((config.lanAccess === true) !== prevLan) restartListener();
   res.json({ ok: true });

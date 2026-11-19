@@ -1,17 +1,17 @@
 {
   "name": "ai-novelist-studio",
   "productName": "AI Novelist Studio",
-  "version": "1.4.15",
+  "version": "1.4.16",
   "description": "AIのべりすと API を使った小説執筆・チャットツール",
   "main": "main.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js",
-    "desktop": "electron .",
-    "icon": "node scripts/make-icon.js",
-    "setup:readability": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup-readability.ps1",
-    "build:editor": "esbuild editor/index.js --bundle --format=iife --outfile=public/js/editor.bundle.js",
-    "dist": "electron-builder --win"
+    "start": "node \"%INIT_CWD%\\server.js\"",
+    "dev": "node --watch \"%INIT_CWD%\\server.js\"",
+    "desktop": "electron \"%INIT_CWD%\"",
+    "icon": "node \"%INIT_CWD%\\scripts\\make-icon.js\"",
+    "setup:readability": "powershell -NoProfile -ExecutionPolicy Bypass -File \"%INIT_CWD%\\scripts\\setup-readability.ps1\"",
+    "build:editor": "node \"%INIT_CWD%\\scripts\\build-editor.js\"",
+    "dist": "pushd \"%INIT_CWD%\" && node node_modules\\electron-builder\\cli.js --win"
   },
   "build": {
     "appId": "com.ainoveliststudio.app",
@@ -54,12 +54,10 @@
     "node": ">=22.13"
   },
   "dependencies": {
-    "@tiptap/core": "^2.27.3",
-    "@tiptap/extension-link": "^2.27.3",
-    "@tiptap/extension-placeholder": "^2.27.3",
-    "@tiptap/extension-underline": "^2.27.3",
-    "@tiptap/pm": "^2.27.3",
-    "@tiptap/starter-kit": "^2.27.3",
+    "@tiptap/core": "^3.34.0",
+    "@tiptap/extensions": "^3.34.0",
+    "@tiptap/pm": "^3.34.0",
+    "@tiptap/starter-kit": "^3.34.0",
     "chart.js": "^4.6.1",
     "diff": "^9.0.0",
     "express": "^5.3.0",

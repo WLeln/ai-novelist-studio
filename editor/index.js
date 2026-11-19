@@ -3,9 +3,7 @@ import { Editor, Extension, Mark } from '@tiptap/core';
 import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import StarterKit from '@tiptap/starter-kit';
-import Underline from '@tiptap/extension-underline';
-import Link from '@tiptap/extension-link';
-import Placeholder from '@tiptap/extension-placeholder';
+import { Placeholder } from '@tiptap/extensions';
 
 const AssistKey = new PluginKey('writerAssist');
 
@@ -223,12 +221,16 @@ function createEditor(el, { content = '', placeholder = '', onUpdate = null, get
   const editor = new Editor({
     element: el,
     extensions: [
+      // TipTap v3: StarterKit が Link/Underline/ListKeymap を内包するため個別importは不要
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
-        link: false
+        link: {
+          openOnClick: false,
+          autolink: true,
+          linkOnPaste: true,
+          HTMLAttributes: { rel: 'noopener noreferrer' }
+        }
       }),
-      Underline,
-      Link.configure({ openOnClick: false, autolink: true, linkOnPaste: true, HTMLAttributes: { rel: 'noopener noreferrer' } }),
       Placeholder.configure({ placeholder }),
       Ruby,
       EmphasisDots,

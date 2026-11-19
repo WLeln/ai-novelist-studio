@@ -1,7 +1,7 @@
 @echo off
 pushd "%~dp0"
 
-rem --- Node.js ï¿½`ï¿½Fï¿½bï¿½Nï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Cï¿½ï¿½ï¿½Xï¿½gï¿½[ï¿½ï¿½ ---
+rem --- Node.js ƒ`ƒFƒbƒN^‚È‚¯‚ê‚ÎƒCƒ“ƒXƒg[ƒ‹ ---
 where node >nul 2>nul
 if not errorlevel 1 goto :run
 if exist "C:\Program Files\nodejs\node.exe" (
@@ -9,23 +9,23 @@ if exist "C:\Program Files\nodejs\node.exe" (
   goto :run
 )
 
-echo Node.js ï¿½ï¿½ï¿½ï¿½ï¿½Â‚ï¿½ï¿½ï¿½Ü‚ï¿½ï¿½ï¿½Bï¿½Cï¿½ï¿½ï¿½Xï¿½gï¿½[ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý‚Ü‚ï¿½...
+echo Node.js ‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñBƒCƒ“ƒXƒg[ƒ‹‚ðŽŽ‚Ý‚Ü‚·...
 where winget >nul 2>nul
 if errorlevel 1 (
-  echo winget ï¿½ï¿½ï¿½ï¿½ï¿½Â‚ï¿½ï¿½ï¿½Ü‚ï¿½ï¿½ï¿½Bhttps://nodejs.org ï¿½ï¿½ï¿½ï¿½ Node.js LTS ï¿½ï¿½ï¿½è“®ï¿½Cï¿½ï¿½ï¿½Xï¿½gï¿½[ï¿½ï¿½ï¿½ï¿½ï¿½ÄÄŽï¿½ï¿½sï¿½ï¿½ï¿½Ä‚ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½B
+  echo winget ‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñBhttps://nodejs.org ‚©‚ç Node.js LTS ‚ðŽè“®ƒCƒ“ƒXƒg[ƒ‹‚µ‚ÄÄŽÀs‚µ‚Ä‚­‚¾‚³‚¢B
   pause
   exit /b 1
 )
 winget install -e --id OpenJS.NodeJS.LTS --accept-source-agreements --accept-package-agreements --silent
 if errorlevel 1 (
-  echo ï¿½Cï¿½ï¿½ï¿½Xï¿½gï¿½[ï¿½ï¿½ï¿½ÉŽï¿½ï¿½sï¿½ï¿½ï¿½Ü‚ï¿½ï¿½ï¿½ï¿½Bhttps://nodejs.org ï¿½ï¿½ï¿½ï¿½ Node.js LTS ï¿½ï¿½ï¿½è“®ï¿½Cï¿½ï¿½ï¿½Xï¿½gï¿½[ï¿½ï¿½ï¿½ï¿½ï¿½Ä‚ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½B
+  echo ƒCƒ“ƒXƒg[ƒ‹‚ÉŽ¸”s‚µ‚Ü‚µ‚½Bhttps://nodejs.org ‚©‚ç Node.js LTS ‚ðŽè“®ƒCƒ“ƒXƒg[ƒ‹‚µ‚Ä‚­‚¾‚³‚¢B
   pause
   exit /b 1
 )
 set "PATH=%PATH%;C:\Program Files\nodejs"
 where node >nul 2>nul
 if errorlevel 1 (
-  echo ï¿½Cï¿½ï¿½ï¿½Xï¿½gï¿½[ï¿½ï¿½ï¿½ÍŠï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ü‚ï¿½ï¿½ï¿½ï¿½Bï¿½ï¿½ï¿½ÌƒEï¿½Bï¿½ï¿½ï¿½hï¿½Eï¿½ï¿½Â‚ï¿½ï¿½ÄÄ“x desktop.bat ï¿½ï¿½ï¿½ï¿½ï¿½sï¿½ï¿½ï¿½Ä‚ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½B
+  echo ƒCƒ“ƒXƒg[ƒ‹‚ÍŠ®—¹‚µ‚Ü‚µ‚½B‚±‚ÌƒEƒBƒ“ƒhƒE‚ð•Â‚¶‚ÄÄ“x desktop.bat ‚ðŽÀs‚µ‚Ä‚­‚¾‚³‚¢B
   pause
   exit /b 1
 )
@@ -33,20 +33,20 @@ if errorlevel 1 (
 :run
 set "ELECTRON_RUN_AS_NODE="
 
-rem ãƒ‘ãƒƒã‚±ãƒ¼ã‚¸æ¸ˆã¿exeãŒã‚ã‚Œã°ãã¡ã‚‰ã‚’å„ªå…ˆï¼ˆã‚¿ã‚¹ã‚¯ãƒãƒ¼ç­‰ãŒæ­£ã—ã„ã‚¢ãƒ—ãƒªåãƒ»ã‚¢ã‚¤ã‚³ãƒ³ã«ãªã‚‹ï¼‰
+rem ƒpƒbƒP[ƒWÏ‚Ýexe‚ª‚ ‚ê‚Î‚»‚¿‚ç‚ð—Dæiƒ^ƒXƒNƒo[“™‚ª³‚µ‚¢ƒAƒvƒŠ–¼EƒAƒCƒRƒ“‚É‚È‚éj
 if exist "dist\win-unpacked\AI Novelist Studio.exe" (
   start "" "dist\win-unpacked\AI Novelist Studio.exe"
   popd
   exit /b 0
 )
 
-rem --- exeãŒç„¡ã„å ´åˆã¯å¾“æ¥é€šã‚Šelectronã§èµ·å‹• ---
+rem --- exe‚ª–³‚¢ê‡‚Í]—ˆ’Ê‚èelectron‚Å‹N“® ---
 npx electron .
 set "RC=%ERRORLEVEL%"
 popd
 if not "%RC%"=="0" (
   echo.
-  echo Electron ï¿½Ì‹Nï¿½ï¿½ï¿½ÉŽï¿½ï¿½sï¿½ï¿½ï¿½Ü‚ï¿½ï¿½ï¿½ï¿½Bï¿½lï¿½bï¿½gï¿½ï¿½ï¿½[ï¿½Nï¿½hï¿½ï¿½ï¿½Cï¿½uï¿½ï¿½Å‚Í•sï¿½ï¿½ï¿½ï¿½Èê‡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ü‚ï¿½ï¿½B
-  echo ï¿½tï¿½Hï¿½ï¿½ï¿½_ï¿½ï¿½ï¿½ï¿½ï¿½[ï¿½Jï¿½ï¿½ï¿½fï¿½Bï¿½Xï¿½Nï¿½ÉƒRï¿½sï¿½[ï¿½ï¿½ï¿½ÄŽï¿½ï¿½sï¿½ï¿½ï¿½é‚©ï¿½Astart.bat ï¿½Åƒuï¿½ï¿½ï¿½Eï¿½Uï¿½Å‚ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½pï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½B
+  echo Electron ‚Ì‹N“®‚ÉŽ¸”s‚µ‚Ü‚µ‚½Bƒlƒbƒgƒ[ƒNƒhƒ‰ƒCƒuã‚Å‚Í•sˆÀ’è‚Èê‡‚ª‚ ‚è‚Ü‚·B
+  echo ƒtƒHƒ‹ƒ_‚ðƒ[ƒJƒ‹ƒfƒBƒXƒN‚ÉƒRƒs[‚µ‚ÄŽÀs‚·‚é‚©Astart.bat ‚Åƒuƒ‰ƒEƒU‚Å‚à‚²—˜—p‚­‚¾‚³‚¢B
   pause
 )

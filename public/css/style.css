@@ -1599,3 +1599,14 @@ button,
 }
 .note-suggest-item.sel { background: var(--accent); color: #fff; }
 .note-suggest-item.disabled { color: var(--text-dim); cursor: default; }
+
+
+/* ローカル校正 */
+.lc-badge {
+  display: inline-block; min-width: 16px; height: 16px; line-height: 16px;
+  padding: 0 4px; margin-left: 6px; border-radius: 8px;
+  background: var(--danger, #e05555); color: #fff;
+  font-size: 10px; font-weight: 700; text-align: center; vertical-align: 1px;
+}
+.lc-items { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.lc-jump { font-size: 11px; }

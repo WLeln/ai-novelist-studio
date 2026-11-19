@@ -1,7 +1,7 @@
 @echo off
 pushd "%~dp0"
 
-rem --- Node.js チェック＆自動インストール ---
+rem --- Node.js チェック／なければインストール ---
 where node >nul 2>nul
 if not errorlevel 1 goto :run
 if exist "C:\Program Files\nodejs\node.exe" (
