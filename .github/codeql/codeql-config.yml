@@ -1,0 +1,12 @@
+# CodeQL configuration: skip generated bundles and vendored/minified files,
+# and limit JS analysis to security queries (quality nits are too noisy
+# for this vanilla-JS codebase).
+paths-ignore:
+  - public/js/*.bundle.js
+  - public/js/*.min.js
+  - assets/js/howler.min.js
+  - node_modules
+  - dist
+
+queries:
+  - security-extended
