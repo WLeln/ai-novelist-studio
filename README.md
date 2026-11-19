@@ -7,7 +7,7 @@ AIのべりすと（`spiko_ultra` 固定）と会話しながら小説を生成�
 ## クイックスタート
 
 1. [Releases](https://github.com/WLeln/ai-novelist-studio/releases) から `AI Novelist Studio Setup x.x.x.exe` をダウンロード・インストール
-2. アプリを起動し、設定画面で**AIのべりすとのAPIキー**を登録
+2. アプリを起動し、設定画面で**AIのべりすとのAPIキー**を登録（APIキー・ルミナは [AIのべりすと](https://ai-novel.com/) で取得・購入できます。設定画面の「ルミナを購入する」ボタンからも購入ページへ移動できます）
 3. チャットで「こんにちは」と話しかける → あとは会話しながら執筆
 
 詳しい使い方は **[MANUAL.md](MANUAL.md)**（ユーザーマニュアル）を参照してください。
