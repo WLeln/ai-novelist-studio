@@ -255,7 +255,7 @@ AIを使わず、MeCab+UniDicの形態素解析で以下をチェックします
 
 ## 15. クレジット
 
-- **作者**: kirik
+- **作者**: ましろっぷ
 - **ライセンス**: MIT
 - **リポジトリ**: https://github.com/WLeln/ai-novelist-studio
 
