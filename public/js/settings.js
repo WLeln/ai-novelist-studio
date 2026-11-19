@@ -40,6 +40,7 @@ export function openSettings() {
   $('sApiKey').value = '';
   $('sApiKey').placeholder = config.hasApiKey ? config.apiKeyMasked : 'APIキーを入力';
   $('sModel').value = config.model;
+  if (!$('sModel').value) $('sModel').value = 'spiko_ultra';
   $('sProvider').value = 'tringpt';
   $('sBaseUrl').value = PROVIDER_URLS.tringpt;
   $('sNoAuth').removeAttribute('checked');
